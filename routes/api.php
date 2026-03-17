@@ -5,7 +5,7 @@ use App\Http\Controllers\ProjectController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', function () {
-    return response()->json(['status' => 'ok',], 200);
+    return response()->json(['status' => 'ok'], 200);
 });
 
 Route::post('/login', [AuthController::class, 'login']);
