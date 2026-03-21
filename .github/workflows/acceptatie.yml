@@ -2,9 +2,9 @@ name: Acceptatie CI
 
 on:
   push:
-    branches: [ acceptatie ]
+    branches: [ Acceptatie ]
   pull_request:
-    branches: [ acceptatie ]
+    branches: [ Acceptatie ]
 
 jobs:
   laravel-checks:
