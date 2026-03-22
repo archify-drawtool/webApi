@@ -2,9 +2,9 @@ name: Feature CI
 
 on:
   push:
-    branches-ignore: [ main, test, acceptatie ]
+    branches-ignore: [ main, Test, Acceptatie ]
   pull_request:
-    branches-ignore: [ main, test, acceptatie ]
+    branches-ignore: [ main, Test, Acceptatie ]
 
 jobs:
   laravel-checks:
