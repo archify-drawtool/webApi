@@ -13,7 +13,10 @@ class PhotoController extends Controller
             'photo' => 'required|image|max:10240',
         ]);
 
-        $path = $request->file('photo')->store('photos', 'local');
+        $extension = $request->file('photo')->getClientOriginalExtension();
+        $filename = now()->timezone('Europe/Amsterdam')->format('Y-m-d_H-i-s_v') . '.' . $extension;
+
+        $path = $request->file('photo')->storeAs('photos', $filename, 'local');
 
         return response()->json([
             'message' => 'Photo uploaded successfully',
