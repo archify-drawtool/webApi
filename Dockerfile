@@ -1,17 +1,32 @@
+# Stage 1: Builder – install Composer dependencies
+FROM composer:2 AS builder
+
+WORKDIR /app
+
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction --prefer-dist
+
+COPY . .
+RUN composer dump-autoload --optimize --no-dev
+
+# Stage 2: Runtime – nginx + php-fpm
 FROM php:8.4-fpm-alpine
+
+RUN apk add --no-cache nginx supervisor curl \
+    && docker-php-ext-install pdo pdo_mysql opcache
 
 WORKDIR /var/www/html
 
-RUN apk add --no-cache nginx curl unzip
-RUN curl -sS https://getcomposer.org/installer | php -- \
-    --install-dir=/usr/local/bin --filename=composer
+COPY --from=builder /app /var/www/html
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY docker/supervisord.conf /etc/supervisord.conf
 
-COPY . .
+RUN chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
 
-RUN composer install --no-dev --optimize-autoloader
+EXPOSE 80
 
-RUN chown -R www-data:www-data storage bootstrap/cache
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost/up || exit 1
 
-EXPOSE 8000
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
-
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
