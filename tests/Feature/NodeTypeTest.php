@@ -1,5 +1,11 @@
 <?php
 
+use App\Models\User;
+
+beforeEach(function () {
+    $this->actingAs(User::factory()->create());
+});
+
 test('node types endpoint returns 200', function () {
     $this->getJson('/api/node-types')
         ->assertStatus(200);
