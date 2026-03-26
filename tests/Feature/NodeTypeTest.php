@@ -15,13 +15,14 @@ test('each node type has required fields with correct data types', function () {
     $nodeTypes = $this->getJson('/api/node-types')->json();
 
     foreach ($nodeTypes as $nodeType) {
-        expect($nodeType)
-            ->toHaveKey('type')->and($nodeType['type'])->toBeString()
-            ->toHaveKey('name')->and($nodeType['name'])->toBeString()
-            ->toHaveKey('icon')->and($nodeType['icon'])->toBeString()
-            ->toHaveKey('aruco')->and($nodeType['aruco'])->toBeInt();
+        expect($nodeType)->toHaveKeys(['type', 'name', 'icon', 'aruco'])
+            ->and($nodeType['type'])->toBeString()
+            ->and($nodeType['name'])->toBeString()
+            ->and($nodeType['icon'])->toBeString()
+            ->and($nodeType['aruco'])->toBeInt();
     }
 });
+
 test('node type identifiers are unique', function () {
     $nodeTypes = $this->getJson('/api/node-types')->json();
     $types = array_column($nodeTypes, 'type');
