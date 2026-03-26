@@ -11,18 +11,17 @@ test('node types endpoint returns 200', function () {
         ->assertStatus(200);
 });
 
-test('each node type has required fields', function () {
+test('each node type has required fields with correct data types', function () {
     $nodeTypes = $this->getJson('/api/node-types')->json();
 
     foreach ($nodeTypes as $nodeType) {
         expect($nodeType)
-            ->toHaveKey('type')
-            ->toHaveKey('name')
-            ->toHaveKey('icon')
-            ->toHaveKey('aruco');
+            ->toHaveKey('type')->and($nodeType['type'])->toBeString()
+            ->toHaveKey('name')->and($nodeType['name'])->toBeString()
+            ->toHaveKey('icon')->and($nodeType['icon'])->toBeString()
+            ->toHaveKey('aruco')->and($nodeType['aruco'])->toBeInt();
     }
 });
-
 test('node type identifiers are unique', function () {
     $nodeTypes = $this->getJson('/api/node-types')->json();
     $types = array_column($nodeTypes, 'type');
