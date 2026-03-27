@@ -1,0 +1,25 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+
+class PhotoController extends Controller
+{
+    public function upload(Request $request)
+    {
+        $request->validate([
+            'photo' => 'required|image|max:10240',
+        ]);
+
+        $extension = $request->file('photo')->getClientOriginalExtension();
+        $filename = now()->timezone('Europe/Amsterdam')->format('Y-m-d_H-i-s_v').'.'.$extension;
+
+        $path = $request->file('photo')->storeAs('photos', $filename, 'local');
+
+        return response()->json([
+            'message' => 'Photo uploaded successfully',
+            'path' => $path,
+        ], 201);
+    }
+}
