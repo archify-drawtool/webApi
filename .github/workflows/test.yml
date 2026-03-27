@@ -1,14 +1,30 @@
-name: Laravel CI
+name: Test CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ Test ]
   pull_request:
-    branches: [ main ]
+    branches: [ Test ]
 
 jobs:
   laravel-checks:
     runs-on: ubuntu-latest
+    environment: test
+
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_DATABASE: laravel_test
+          MYSQL_ROOT_PASSWORD: secret
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
     steps:
       - uses: actions/checkout@v5
 
@@ -26,6 +42,18 @@ jobs:
 
       - name: Generate app key
         run: php artisan key:generate
+
+      - name: Configure database
+        run: |
+          echo "DB_CONNECTION=mysql" >> .env
+          echo "DB_HOST=127.0.0.1" >> .env
+          echo "DB_PORT=3306" >> .env
+          echo "DB_DATABASE=laravel_test" >> .env
+          echo "DB_USERNAME=root" >> .env
+          echo "DB_PASSWORD=secret" >> .env
+
+      - name: Run migrations & seed
+        run: php artisan migrate --seed --force
 
       - name: Run linting (Pint)
         run: ./vendor/bin/pint --test
