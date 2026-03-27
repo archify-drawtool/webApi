@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use RuntimeException;
-use Illuminate\Support\Facades\Log;
 
 class ArucoService
 {
@@ -21,7 +21,7 @@ class ArucoService
         $this->pythonPath = config('aruco.python_path', 'python3');
         $this->scriptPath = config('aruco.script_path', base_path('scripts/detect_aruco.py'));
         $this->dictionary = config('aruco.dictionary', 'DICT_4X4_50');
-        $this->timeout    = (int) config('aruco.timeout', 30);
+        $this->timeout = (int) config('aruco.timeout', 30);
     }
 
     /**
@@ -35,8 +35,8 @@ class ArucoService
      *
      * Returns an empty array when no markers are detected (not an error).
      *
-     * @throws InvalidArgumentException  When the image file does not exist.
-     * @throws RuntimeException          When the script is missing, Python is unavailable, or detection fails.
+     * @throws InvalidArgumentException When the image file does not exist.
+     * @throws RuntimeException When the script is missing, Python is unavailable, or detection fails.
      */
     public function detectMarkers(string $imagePath): array
     {
@@ -85,7 +85,7 @@ class ArucoService
 
         $stdout = '';
         $stderr = '';
-        $start  = time();
+        $start = time();
 
         while (! feof($pipes[1]) || ! feof($pipes[2])) {
             if ((time() - $start) > $this->timeout) {
@@ -97,8 +97,8 @@ class ArucoService
                 throw new RuntimeException("ArUco detection timed out after {$this->timeout} seconds.");
             }
 
-            $read   = array_filter([$pipes[1], $pipes[2]], fn ($p) => ! feof($p));
-            $write  = null;
+            $read = array_filter([$pipes[1], $pipes[2]], fn ($p) => ! feof($p));
+            $write = null;
             $except = null;
 
             if (empty($read) || stream_select($read, $write, $except, 1) === false) {
@@ -120,7 +120,7 @@ class ArucoService
         if ($exitCode !== 0) {
             Log::error('ArUco detection script failed', [
                 'exit_code' => $exitCode,
-                'stderr'    => $stderr,
+                'stderr' => $stderr,
             ]);
 
             throw new RuntimeException("ArUco detection script exited with code {$exitCode}: {$stderr}");
