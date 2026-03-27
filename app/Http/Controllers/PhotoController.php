@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class PhotoController extends Controller
 {
@@ -14,7 +13,7 @@ class PhotoController extends Controller
         ]);
 
         $extension = $request->file('photo')->getClientOriginalExtension();
-        $filename = now()->timezone('Europe/Amsterdam')->format('Y-m-d_H-i-s_v') . '.' . $extension;
+        $filename = now()->timezone('Europe/Amsterdam')->format('Y-m-d_H-i-s_v').'.'.$extension;
 
         $path = $request->file('photo')->storeAs('photos', $filename, 'local');
 
