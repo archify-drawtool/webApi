@@ -2,8 +2,8 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\NodeTypeController;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PhotoController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/health', function () {
     return response()->json(['status' => 'ok'], 200);
