@@ -12,8 +12,9 @@ RUN composer dump-autoload --optimize --no-dev
 # Stage 2: Runtime – nginx + php-fpm
 FROM php:8.4-fpm-alpine
 
-RUN apk add --no-cache nginx supervisor curl \
-    && docker-php-ext-install pdo pdo_mysql opcache
+RUN apk add --no-cache nginx supervisor curl python3 py3-pip py3-numpy libgl libglib \
+    && docker-php-ext-install pdo pdo_mysql opcache \
+    && pip3 install --no-cache-dir --break-system-packages "opencv-contrib-python-headless==4.10.*"
 
 WORKDIR /var/www/html
 
