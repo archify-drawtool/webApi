@@ -32,7 +32,7 @@ test('detectMarkers returns empty array when no markers are found', function () 
 
     config([
         'aruco.script_path' => $scriptPath,
-        'aruco.python_path' => 'python3',
+        'aruco.python_path' => pythonBinary(),
     ]);
     $service = new ArucoService;
 
@@ -63,14 +63,14 @@ test('detectMarkers returns structured marker array from script output', functio
                 'rotation' => 0.0,
             ],
         ],
-    ]);
+    ], JSON_PRESERVE_ZERO_FRACTION);
 
     $scriptPath = tempnam(sys_get_temp_dir(), 'aruco_script_').'.py';
     file_put_contents($scriptPath, "import sys\nprint(".var_export($markerJson, true).")\n");
 
     config([
         'aruco.script_path' => $scriptPath,
-        'aruco.python_path' => 'python3',
+        'aruco.python_path' => pythonBinary(),
     ]);
     $service = new ArucoService;
 
@@ -97,7 +97,7 @@ test('detectMarkers throws RuntimeException on non-zero exit code', function () 
 
     config([
         'aruco.script_path' => $scriptPath,
-        'aruco.python_path' => 'python3',
+        'aruco.python_path' => pythonBinary(),
     ]);
     $service = new ArucoService;
 
