@@ -8,7 +8,6 @@ use App\Models\ArucoMarkerCorner;
 use App\Models\DetectionResult;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class PhotoService
@@ -24,12 +23,6 @@ class PhotoService
 
         try {
             $markers = $this->arucoService->detectMarkers($absolutePath);
-
-            Log::info('[ArUco] Detection complete', [
-                'file' => $filename,
-                'marker_count' => count($markers),
-                'markers' => $markers,
-            ]);
 
             $detectionResult = DetectionResult::create([
                 'filename' => $filename,
@@ -64,11 +57,6 @@ class PhotoService
                 }
             }
         } catch (\Throwable $e) {
-            Log::warning('[ArUco] Detection failed', [
-                'file' => $filename,
-                'error' => $e->getMessage(),
-            ]);
-
             DetectionResult::create([
                 'filename' => $filename,
                 'image_path' => $path,

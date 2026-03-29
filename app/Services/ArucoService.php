@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -118,11 +117,6 @@ class ArucoService
         $exitCode = proc_close($process);
 
         if ($exitCode !== 0) {
-            Log::error('ArUco detection script failed', [
-                'exit_code' => $exitCode,
-                'stderr' => $stderr,
-            ]);
-
             throw new RuntimeException("ArUco detection script exited with code {$exitCode}: {$stderr}");
         }
 
