@@ -20,3 +20,4 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::post('/photos/upload', [PhotoController::class, 'upload']);
+Route::get('/photos/{filename}/aruco', [PhotoController::class, 'getArucoResults']);

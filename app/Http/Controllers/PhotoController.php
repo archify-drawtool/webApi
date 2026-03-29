@@ -2,45 +2,39 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\ArucoService;
+use App\Services\PhotoService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class PhotoController extends Controller
 {
-    public function __construct(private ArucoService $arucoService) {}
+    public function __construct(private readonly PhotoService $photoService) {}
 
-    public function upload(Request $request)
+    public function upload(Request $request): JsonResponse
     {
         $request->validate([
             'photo' => 'required|image|max:10240',
         ]);
 
-        $extension = $request->file('photo')->getClientOriginalExtension();
-        $filename = now()->timezone('Europe/Amsterdam')->format('Y-m-d_H-i-s_v').'.'.$extension;
-
-        $path = $request->file('photo')->storeAs('photos', $filename, 'local');
-
-        try {
-            $absolutePath = Storage::disk('local')->path($path);
-            $markers = $this->arucoService->detectMarkers($absolutePath);
-
-            Log::info('[ArUco] Detection complete', [
-                'file' => $filename,
-                'marker_count' => count($markers),
-                'markers' => $markers,
-            ]);
-        } catch (\Throwable $e) {
-            Log::warning('[ArUco] Detection failed', [
-                'file' => $filename,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        $path = $this->photoService->store($request->file('photo'));
 
         return response()->json([
             'message' => 'Photo uploaded successfully',
-            'path' => $path,
+            'path'    => $path,
         ], 201);
+    }
+
+    public function getArucoResults(string $filename): JsonResponse
+    {
+        $result = $this->photoService->getDetectionResult($filename);
+
+        if ($result === null) {
+            return response()->json(
+                ['message' => 'No detection result found for this filename.'],
+                404
+            );
+        }
+
+        return response()->json($result);
     }
 }
