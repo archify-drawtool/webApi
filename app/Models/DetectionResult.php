@@ -18,7 +18,7 @@ class DetectionResult extends Model
     {
         return [
             'detection_failed' => 'boolean',
-            'detected_at'      => 'datetime',
+            'detected_at' => 'datetime',
         ];
     }
 

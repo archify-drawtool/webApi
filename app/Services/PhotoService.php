@@ -32,19 +32,19 @@ class PhotoService
             ]);
 
             $detectionResult = DetectionResult::create([
-                'filename'         => $filename,
-                'image_path'       => $path,
+                'filename' => $filename,
+                'image_path' => $path,
                 'detection_failed' => false,
-                'detected_at'      => Carbon::now(),
+                'detected_at' => Carbon::now(),
             ]);
 
             foreach ($markers as $marker) {
                 $arucoMarker = ArucoMarker::create([
                     'detection_result_id' => $detectionResult->id,
-                    'marker_id'           => $marker['id'],
-                    'center_x'            => $marker['center']['x'],
-                    'center_y'            => $marker['center']['y'],
-                    'rotation'            => $marker['rotation'],
+                    'marker_id' => $marker['id'],
+                    'center_x' => $marker['center']['x'],
+                    'center_y' => $marker['center']['y'],
+                    'rotation' => $marker['rotation'],
                 ]);
 
                 $cornerMap = [
@@ -57,9 +57,9 @@ class PhotoService
                 foreach ($cornerMap as $index => $position) {
                     ArucoMarkerCorner::create([
                         'aruco_marker_id' => $arucoMarker->id,
-                        'position'        => $position,
-                        'x'               => $marker['corners'][$index]['x'],
-                        'y'               => $marker['corners'][$index]['y'],
+                        'position' => $position,
+                        'x' => $marker['corners'][$index]['x'],
+                        'y' => $marker['corners'][$index]['y'],
                     ]);
                 }
             }
@@ -70,10 +70,10 @@ class PhotoService
             ]);
 
             DetectionResult::create([
-                'filename'         => $filename,
-                'image_path'       => $path,
+                'filename' => $filename,
+                'image_path' => $path,
                 'detection_failed' => true,
-                'detected_at'      => Carbon::now(),
+                'detected_at' => Carbon::now(),
             ]);
         }
 

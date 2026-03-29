@@ -20,7 +20,7 @@ class PhotoController extends Controller
 
         return response()->json([
             'message' => 'Photo uploaded successfully',
-            'path'    => $path,
+            'path' => $path,
         ], 201);
     }
 
