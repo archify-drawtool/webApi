@@ -60,3 +60,8 @@ function pythonBinary(): string
 {
     return PHP_OS_FAMILY === 'Windows' ? 'python' : 'python3';
 }
+
+function fixturesPath(string $relative = ''): string
+{
+    return __DIR__.'/Fixtures/'.ltrim($relative, '/');
+}
