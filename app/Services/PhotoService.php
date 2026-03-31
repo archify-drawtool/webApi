@@ -12,7 +12,11 @@ use Illuminate\Support\Facades\Storage;
 
 class PhotoService
 {
-    public function __construct(private ArucoService $arucoService) {}
+    public function __construct(
+        private readonly ArucoService $arucoService,
+        private readonly ImageSnippetService $imageSnippetService,
+        private readonly OcrService $ocrService,
+    ) {}
 
     public function store(UploadedFile $photo): string
     {
@@ -38,6 +42,7 @@ class PhotoService
                     'center_x' => $marker['center']['x'],
                     'center_y' => $marker['center']['y'],
                     'rotation' => $marker['rotation'],
+                    'ocr_text' => $this->extractOcrText($absolutePath, $marker, $detectionResult->id),
                 ]);
 
                 $cornerMap = [
@@ -73,5 +78,23 @@ class PhotoService
         return DetectionResult::with('markers.corners')
             ->where('filename', $filename)
             ->first();
+    }
+
+    private function extractOcrText(string $absolutePath, array $marker, int $detectionResultId): ?string
+    {
+        try {
+            $imageData = $this->imageSnippetService->extractSnippet($absolutePath, $marker);
+
+            Storage::disk('local')->put(
+                "debug/ocr-snippets/{$detectionResultId}_{$marker['id']}.jpg",
+                $imageData
+            );
+
+            return $this->ocrService->recognizeTextFromImageData($imageData);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
     }
 }
