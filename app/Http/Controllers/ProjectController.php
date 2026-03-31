@@ -28,7 +28,7 @@ class ProjectController extends Controller
         ]);
 
         $project = Project::create([
-            'title'      => $validated['title'],
+            'title' => $validated['title'],
             'created_by' => $request->user()->id,
         ]);
 
