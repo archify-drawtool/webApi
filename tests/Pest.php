@@ -21,6 +21,10 @@ pest()
     ->use(RefreshDatabase::class)
     ->in('Feature');
 
+pest()
+    ->extend(TestCase::class)
+    ->in('Unit');
+
 /*
 |--------------------------------------------------------------------------
 | Expectations
@@ -50,4 +54,9 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+function pythonBinary(): string
+{
+    return PHP_OS_FAMILY === 'Windows' ? 'python' : 'python3';
 }
