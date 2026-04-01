@@ -86,12 +86,6 @@ readonly class PhotoService
         try {
             $imageData = $this->imageSnippetService->extractSnippet($absolutePath, $marker);
 
-            // TODO: store for debugging.
-            Storage::disk('local')->put(
-                "debug/ocr-snippets/{$detectionResultId}_{$marker['id']}.jpg",
-                $imageData
-            );
-
             return $this->ocrService->recognizeTextFromImageData($imageData);
         } catch (Throwable $e) {
             report($e);
