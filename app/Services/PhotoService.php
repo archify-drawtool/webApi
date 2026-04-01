@@ -9,13 +9,14 @@ use App\Models\DetectionResult;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
-class PhotoService
+readonly class PhotoService
 {
     public function __construct(
-        private readonly ArucoService $arucoService,
-        private readonly ImageSnippetService $imageSnippetService,
-        private readonly OcrService $ocrService,
+        private ArucoService $arucoService,
+        private ImageSnippetService $imageSnippetService,
+        private OcrService $ocrService,
     ) {}
 
     public function store(UploadedFile $photo): string
@@ -61,7 +62,7 @@ class PhotoService
                     ]);
                 }
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             DetectionResult::create([
                 'filename' => $filename,
                 'image_path' => $path,
@@ -92,7 +93,7 @@ class PhotoService
             );
 
             return $this->ocrService->recognizeTextFromImageData($imageData);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             report($e);
 
             return null;

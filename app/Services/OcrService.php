@@ -9,7 +9,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class OcrService
 {
-    private const VISION_API_URL = 'https://vision.googleapis.com/v1/images:annotate';
+    private const string VISION_API_URL = 'https://vision.googleapis.com/v1/images:annotate';
 
     public function recognizeText(UploadedFile $photo): string
     {
