@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use GdImage;
+use InvalidArgumentException;
 use RuntimeException;
 
 class ImageSnippetService
@@ -10,8 +11,7 @@ class ImageSnippetService
     /**
      * Extract a rotation-corrected image snippet around an ArUco marker.
      *
-     * The snippet is 5× the marker width by 5× the marker height, centered on
-     * the marker center, with the marker's clockwise rotation undone so that
+     * The snippet's size is based on values configured in `ocr_hitboxes.php` with the marker's clockwise rotation undone so that
      * any surrounding text is axis-aligned before being sent to OCR.
      *
      * @param  string  $imagePath  Absolute path to the source image.
@@ -27,19 +27,20 @@ class ImageSnippetService
         $originalW = imagesx($src);
         $originalH = imagesy($src);
 
-        $cx = (float) $marker['center']['x'];
-        $cy = (float) $marker['center']['y'];
+        $centerX = (float) $marker['center']['x'];
+        $centerY = (float) $marker['center']['y'];
 
-        // corners: TL=0, TR=1, BR=2, BL=3
+        // corners: TL=0, TR=1, BR=2, BL=3 (OpenCV)
+        // TODO dit is niet perfect representatief van de W en H, omdat de markers een hoek kunnen hebben. Maar aangezien het grotendeels orthogonaal is is het verwaarloosbaar.
         $corners = $marker['corners'];
         $markerW = $this->euclideanDistance($corners[0], $corners[1]); // TL → TR
         $markerH = $this->euclideanDistance($corners[0], $corners[3]); // TL → BL
 
-        $snippetW = (int) round($markerW * 5);
-        $snippetH = (int) round($markerH * 5);
+        $hitbox = $this->resolveHitbox((int) $marker['id']);
+        $snippetW = (int) round($markerW * (1.0 + $hitbox['xPos'] + $hitbox['xNeg']));
+        $snippetH = (int) round($markerH * (1.0 + $hitbox['yPos'] + $hitbox['yNeg']));
 
-        // imagerotate() rotates counter-clockwise for positive angles.
-        // The marker rotation is clockwise, so passing it directly undoes the tilt.
+        // imagerotate() rotates counter-clockwise (ccw) for positive angles.
         $ccwDeg = (float) $marker['rotation'];
         $rotated = imagerotate($src, $ccwDeg, 0);
         imagedestroy($src);
@@ -56,16 +57,16 @@ class ImageSnippetService
         //   x' =  cos(θ)·rx + sin(θ)·ry
         //   y' = −sin(θ)·rx + cos(θ)·ry
         $radians = deg2rad($ccwDeg);
-        $cx_rot = cos($radians) * ($cx - $originalW / 2)
-            + sin($radians) * ($cy - $originalH / 2)
+        $centerXRotated = cos($radians) * ($centerX - $originalW / 2)
+            + sin($radians) * ($centerY - $originalH / 2)
             + $newW / 2;
-        $cy_rot = -sin($radians) * ($cx - $originalW / 2)
-            + cos($radians) * ($cy - $originalH / 2)
+        $centerYRotated = -sin($radians) * ($centerX - $originalW / 2)
+            + cos($radians) * ($centerY - $originalH / 2)
             + $newH / 2;
 
-        // Crop rectangle centered on the transformed marker center.
-        $cropX = (int) round($cx_rot - $snippetW / 2);
-        $cropY = (int) round($cy_rot - $snippetH / 2);
+        // Crop rectangle anchored to the marker edges, offset by the hitbox.
+        $cropX = (int) round($centerXRotated - $markerW / 2 - $hitbox['xNeg'] * $markerW);
+        $cropY = (int) round($centerYRotated - $markerH / 2 - $hitbox['yNeg'] * $markerH);
 
         // Clamp to canvas bounds.
         $cropX = max(0, min($cropX, $newW - 1));
@@ -125,5 +126,29 @@ class ImageSnippetService
     private function euclideanDistance(array $pointA, array $pointB): float
     {
         return sqrt(($pointB['x'] - $pointA['x']) ** 2 + ($pointB['y'] - $pointA['y']) ** 2);
+    }
+
+    /**
+     * Look up and validate the OCR hitbox for the given marker ID.
+     *
+     * @throws InvalidArgumentException When the hitbox boundaries cross each other. //TODO dit kan ook toegestaan worden, maar dan krijg je potentieel ongewenst gedrag.
+     */
+    private function resolveHitbox(int $markerId): array
+    {
+        $config = config('ocr_hitboxes', []);
+        $hitbox = $config[$markerId] ?? ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0];
+
+        if (($hitbox['xPos'] + $hitbox['xNeg']) <= -1.0) {
+            throw new InvalidArgumentException(
+                "OCR hitbox for marker {$markerId}: xNeg ({$hitbox['xNeg']}) surpasses xPos ({$hitbox['xPos']})."
+            );
+        }
+        if (($hitbox['yPos'] + $hitbox['yNeg']) <= -1.0) {
+            throw new InvalidArgumentException(
+                "OCR hitbox for marker {$markerId}: yNeg ({$hitbox['yNeg']}) surpasses yPos ({$hitbox['yPos']})."
+            );
+        }
+
+        return $hitbox;
     }
 }
