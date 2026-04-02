@@ -18,6 +18,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/node-types', [NodeTypeController::class, 'index']);
     Route::get('/projects', [ProjectController::class, 'index']);
+    Route::post('/projects', [ProjectController::class, 'store']);
+    Route::get('/projects/{project}', [ProjectController::class, 'show']);
+    Route::get('/photos/{filename}/aruco', [PhotoController::class, 'getArucoResults']);
     Route::get('/sketches/{sketch}', [SketchController::class, 'show']);
     Route::get('/projects/{project}/sketches/{sketch}', [SketchController::class, 'showForProject']);
 });
