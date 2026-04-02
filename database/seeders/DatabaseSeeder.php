@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Project;
+use App\Models\Sketch;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -22,7 +23,20 @@ class DatabaseSeeder extends Seeder
             'password' => bcrypt('password'),
         ]);
 
-        Project::factory(30)->create([
+        $projects = Project::factory(30)->create([
+            'created_by' => $user->id,
+        ]);
+
+        // Eerste project krijgt een schets met nodes voor canvas-testing
+        Sketch::factory()->withNodes()->create([
+            'title' => 'IT Landschap v1',
+            'project_id' => $projects->first()->id,
+            'created_by' => $user->id,
+        ]);
+
+        // Paar lege schetsen op willekeurige projecten
+        Sketch::factory(3)->create([
+            'project_id' => $projects->random()->id,
             'created_by' => $user->id,
         ]);
     }
