@@ -19,6 +19,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/node-types', [NodeTypeController::class, 'index']);
     Route::get('/projects', [ProjectController::class, 'index']);
     Route::get('/sketches/{sketch}', [SketchController::class, 'show']);
+    Route::get('/projects/{project}/sketches/{sketch}', [SketchController::class, 'showForProject']);
 });
 
 Route::post('/photos/upload', [PhotoController::class, 'upload']);
