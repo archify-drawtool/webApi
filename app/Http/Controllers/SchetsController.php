@@ -35,7 +35,7 @@ class SchetsController extends Controller
         ]);
 
         $schets = Schets::create([
-            'title'      => $validated['title'],
+            'title' => $validated['title'],
             'project_id' => $project->id,
             'created_by' => $request->user()->id,
         ]);

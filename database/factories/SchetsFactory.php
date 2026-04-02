@@ -15,7 +15,7 @@ class SchetsFactory extends Factory
     public function definition(): array
     {
         return [
-            'title'      => fake()->sentence(3),
+            'title' => fake()->sentence(3),
             'project_id' => Project::factory(),
             'created_by' => User::factory(),
         ];

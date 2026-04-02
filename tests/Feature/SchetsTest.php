@@ -59,13 +59,13 @@ it('creates a schets for a project', function () {
             ],
         ])
         ->assertJsonFragment([
-            'title'      => 'Nieuwe schets',
+            'title' => 'Nieuwe schets',
             'project_id' => $project->id,
             'created_by' => $user->id,
         ]);
 
     $this->assertDatabaseHas('schetsen', [
-        'title'      => 'Nieuwe schets',
+        'title' => 'Nieuwe schets',
         'project_id' => $project->id,
         'created_by' => $user->id,
     ]);
