@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\NodeTypeController;
 use App\Http\Controllers\PhotoController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\SchetsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', function () {
@@ -19,6 +20,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/projects', [ProjectController::class, 'index']);
     Route::post('/projects', [ProjectController::class, 'store']);
     Route::get('/projects/{project}', [ProjectController::class, 'show']);
+    Route::get('/projects/{project}/schetsen', [SchetsController::class, 'index']);
+    Route::post('/projects/{project}/schetsen', [SchetsController::class, 'store']);
+    Route::get('/projects/{project}/schetsen/{schets}', [SchetsController::class, 'show']);
     Route::get('/photos/{filename}/aruco', [PhotoController::class, 'getArucoResults']);
 });
 
