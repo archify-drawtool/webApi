@@ -27,16 +27,9 @@ class DatabaseSeeder extends Seeder
             'created_by' => $user->id,
         ]);
 
-        // Eerste project krijgt een schets met nodes voor canvas-testing
         Sketch::factory()->withNodes()->create([
             'title' => 'IT Landschap v1',
             'project_id' => $projects->first()->id,
-            'created_by' => $user->id,
-        ]);
-
-        // Paar lege schetsen op willekeurige projecten
-        Sketch::factory(3)->create([
-            'project_id' => $projects->random()->id,
             'created_by' => $user->id,
         ]);
     }
