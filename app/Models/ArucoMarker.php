@@ -14,6 +14,7 @@ class ArucoMarker extends Model
         'center_x',
         'center_y',
         'rotation',
+        'ocr_text',
     ];
 
     public function detectionResult(): BelongsTo

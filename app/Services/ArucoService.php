@@ -40,11 +40,11 @@ class ArucoService
     public function detectMarkers(string $imagePath): array
     {
         if (! file_exists($imagePath)) {
-            throw new InvalidArgumentException("Image file not found: {$imagePath}");
+            throw new InvalidArgumentException("Image file not found: $imagePath");
         }
 
         if (! file_exists($this->scriptPath)) {
-            throw new RuntimeException("ArUco detection script not found: {$this->scriptPath}");
+            throw new RuntimeException("ArUco detection script not found: $this->scriptPath");
         }
 
         $output = $this->executeScript($this->buildCommand($imagePath));
@@ -93,7 +93,7 @@ class ArucoService
                 fclose($pipes[2]);
                 proc_close($process);
 
-                throw new RuntimeException("ArUco detection timed out after {$this->timeout} seconds.");
+                throw new RuntimeException("ArUco detection timed out after $this->timeout seconds.");
             }
 
             $read = array_filter([$pipes[1], $pipes[2]], fn ($p) => ! feof($p));
@@ -117,7 +117,7 @@ class ArucoService
         $exitCode = proc_close($process);
 
         if ($exitCode !== 0) {
-            throw new RuntimeException("ArUco detection script exited with code {$exitCode}: {$stderr}");
+            throw new RuntimeException("ArUco detection script exited with code $exitCode: $stderr");
         }
 
         return $stdout;
