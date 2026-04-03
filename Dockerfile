@@ -1,6 +1,10 @@
 # Stage 1: Builder – install Composer dependencies
 FROM composer:2 AS builder
 
+RUN apk add --no-cache libpng-dev libjpeg-turbo-dev freetype-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install gd
+
 WORKDIR /app
 
 COPY composer.json composer.lock ./
@@ -14,7 +18,9 @@ FROM php:8.4-fpm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         nginx supervisor curl python3 python3-pip python3-numpy \
-    && docker-php-ext-install pdo pdo_mysql opcache \
+        libpng-dev libjpeg-dev libfreetype6-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo pdo_mysql opcache gd \
     && pip3 install --no-cache-dir --break-system-packages "opencv-contrib-python-headless==4.10.*" \
     && rm -rf /var/lib/apt/lists/*
 

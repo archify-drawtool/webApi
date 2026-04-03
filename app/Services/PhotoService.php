@@ -9,10 +9,15 @@ use App\Models\DetectionResult;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
-class PhotoService
+readonly class PhotoService
 {
-    public function __construct(private ArucoService $arucoService) {}
+    public function __construct(
+        private ArucoService $arucoService,
+        private ImageSnippetService $imageSnippetService,
+        private OcrService $ocrService,
+    ) {}
 
     public function store(UploadedFile $photo): string
     {
@@ -38,6 +43,7 @@ class PhotoService
                     'center_x' => $marker['center']['x'],
                     'center_y' => $marker['center']['y'],
                     'rotation' => $marker['rotation'],
+                    'ocr_text' => $this->extractOcrText($absolutePath, $marker, $detectionResult->id),
                 ]);
 
                 $cornerMap = [
@@ -56,7 +62,7 @@ class PhotoService
                     ]);
                 }
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             DetectionResult::create([
                 'filename' => $filename,
                 'image_path' => $path,
@@ -73,5 +79,18 @@ class PhotoService
         return DetectionResult::with('markers.corners')
             ->where('filename', $filename)
             ->first();
+    }
+
+    private function extractOcrText(string $absolutePath, array $marker, int $detectionResultId): ?string
+    {
+        try {
+            $imageData = $this->imageSnippetService->extractSnippet($absolutePath, $marker);
+
+            return $this->ocrService->recognizeTextFromImageData($imageData);
+        } catch (Throwable $e) {
+            report($e);
+
+            return null;
+        }
     }
 }
