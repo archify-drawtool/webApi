@@ -9,7 +9,6 @@ on:
 jobs:
   laravel-checks:
     runs-on: ubuntu-latest
-    environment: productie
 
     steps:
       - uses: actions/checkout@v4
@@ -29,17 +28,8 @@ jobs:
       - name: Generate app key
         run: php artisan key:generate
 
-      - name: Configure database
-        run: |
-          echo "DB_CONNECTION=mysql" >> .env
-          echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
-          echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
-          echo "DB_DATABASE=${{ secrets.DB_DATABASE }}" >> .env
-          echo "DB_USERNAME=${{ secrets.DB_USERNAME }}" >> .env
-          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
-
       - name: Run migrations
-        run: php artisan migrate --force
+        run: php artisan migrate
 
       - name: Run linting (Pint)
         run: ./vendor/bin/pint --test
