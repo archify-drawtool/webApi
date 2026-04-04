@@ -76,4 +76,5 @@ jobs:
           script: |
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
             docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/archify-api:latest
-            docker-compose -f /home/ec2-user/docker-compose.yml up -d --no-deps --build api
+            docker-compose -f /home/ec2-user/docker-compose.yml up -d --no-deps api
+            docker-compose -f /home/ec2-user/docker-compose.yml exec -T api php artisan migrate --force
