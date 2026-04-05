@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Project;
-use App\Models\Schets;
+use App\Models\Sketch;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -28,7 +28,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $projects->each(function (Project $project) use ($user) {
-            Schets::factory(3)->create([
+            Sketch::factory(3)->create([
                 'project_id' => $project->id,
                 'created_by' => $user->id,
             ]);

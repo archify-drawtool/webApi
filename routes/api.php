@@ -4,7 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\NodeTypeController;
 use App\Http\Controllers\PhotoController;
 use App\Http\Controllers\ProjectController;
-use App\Http\Controllers\SchetsController;
+use App\Http\Controllers\SketchController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', function () {
@@ -20,10 +20,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/projects', [ProjectController::class, 'index']);
     Route::post('/projects', [ProjectController::class, 'store']);
     Route::get('/projects/{project}', [ProjectController::class, 'show']);
-    Route::get('/projects/{project}/schetsen', [SchetsController::class, 'index']);
-    Route::post('/projects/{project}/schetsen', [SchetsController::class, 'store']);
-    Route::get('/projects/{project}/schetsen/{schets}', [SchetsController::class, 'show']);
     Route::get('/photos/{filename}/aruco', [PhotoController::class, 'getArucoResults']);
+    Route::get('/sketches/{sketch}', [SketchController::class, 'show']);
+    Route::get('/projects/{project}/sketches', [SketchController::class, 'index']);
+    Route::get('/projects/{project}/sketches/{sketch}', [SketchController::class, 'showForProject']);
+    Route::post('/projects/{project}/sketches', [SketchController::class, 'store']);
 });
 
 Route::post('/photos/upload', [PhotoController::class, 'upload']);

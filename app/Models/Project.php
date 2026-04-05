@@ -24,11 +24,8 @@ class Project extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    /**
-     * Schetsen that belong to this project.
-     */
-    public function schetsen(): HasMany
+    public function sketches(): HasMany
     {
-        return $this->hasMany(Schets::class);
+        return $this->hasMany(Sketch::class);
     }
 }
