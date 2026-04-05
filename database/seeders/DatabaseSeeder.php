@@ -27,10 +27,11 @@ class DatabaseSeeder extends Seeder
             'created_by' => $user->id,
         ]);
 
-        Sketch::factory()->withNodes()->create([
-            'title' => 'IT Landschap v1',
-            'project_id' => $projects->first()->id,
-            'created_by' => $user->id,
-        ]);
+        $projects->each(function (Project $project) use ($user) {
+            Sketch::factory(3)->create([
+                'project_id' => $project->id,
+                'created_by' => $user->id,
+            ]);
+        });
     }
 }

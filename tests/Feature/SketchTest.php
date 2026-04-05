@@ -50,3 +50,55 @@ it('returns 401 when unauthenticated on project sketch', function () {
 
     $this->getJson("/api/projects/{$project->id}/sketches/{$sketch->id}")->assertUnauthorized();
 });
+
+it('returns all sketches for a project', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['created_by' => $user->id]);
+    Sketch::factory(3)->create(['project_id' => $project->id, 'created_by' => $user->id]);
+
+    $this->actingAs($user)
+        ->getJson("/api/projects/{$project->id}/sketches")
+        ->assertOk()
+        ->assertJsonCount(3)
+        ->assertJsonStructure([
+            '*' => [
+                'id',
+                'title',
+                'project_id',
+                'created_by',
+                'created_at',
+                'updated_at',
+                'creator' => ['id', 'name', 'email'],
+            ],
+        ]);
+});
+
+it('returns only sketches belonging to the given project', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['created_by' => $user->id]);
+    $otherProject = Project::factory()->create(['created_by' => $user->id]);
+
+    Sketch::factory(2)->create(['project_id' => $project->id, 'created_by' => $user->id]);
+    Sketch::factory(5)->create(['project_id' => $otherProject->id, 'created_by' => $user->id]);
+
+    $this->actingAs($user)
+        ->getJson("/api/projects/{$project->id}/sketches")
+        ->assertOk()
+        ->assertJsonCount(2);
+});
+
+it('returns an empty array when project has no sketches', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['created_by' => $user->id]);
+
+    $this->actingAs($user)
+        ->getJson("/api/projects/{$project->id}/sketches")
+        ->assertOk()
+        ->assertExactJson([]);
+});
+
+it('returns 401 when unauthenticated on project sketches index', function () {
+    $project = Project::factory()->create();
+
+    $this->getJson("/api/projects/{$project->id}/sketches")->assertUnauthorized();
+});

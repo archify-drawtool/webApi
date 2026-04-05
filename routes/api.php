@@ -22,6 +22,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/projects/{project}', [ProjectController::class, 'show']);
     Route::get('/photos/{filename}/aruco', [PhotoController::class, 'getArucoResults']);
     Route::get('/sketches/{sketch}', [SketchController::class, 'show']);
+    Route::get('/projects/{project}/sketches', [SketchController::class, 'index']);
     Route::get('/projects/{project}/sketches/{sketch}', [SketchController::class, 'showForProject']);
 });
 
