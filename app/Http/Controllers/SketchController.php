@@ -19,6 +19,16 @@ class SketchController extends Controller
     }
 
     /**
+     * Get all sketches for a given project with creator info.
+     */
+    public function index(Project $project): JsonResponse
+    {
+        $sketches = $project->sketches()->with('creator:id,name,email')->get();
+
+        return response()->json($sketches);
+    }
+
+    /**
      * Get a single sketch scoped to a project.
      */
     public function showForProject(Project $project, Sketch $sketch): JsonResponse
