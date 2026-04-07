@@ -36,29 +36,32 @@ readonly class PhotoService
                 'detected_at' => Carbon::now(),
             ]);
 
-            foreach ($markers as $marker) {
+            $snippets = $this->extractSnippets($absolutePath, $markers);
+            $ocrTexts = $this->batchOcr($snippets);
+
+            $cornerMap = [
+                CornerPosition::TopLeft,
+                CornerPosition::TopRight,
+                CornerPosition::BottomRight,
+                CornerPosition::BottomLeft,
+            ];
+
+            foreach ($markers as $index => $marker) {
                 $arucoMarker = ArucoMarker::create([
                     'detection_result_id' => $detectionResult->id,
                     'marker_id' => $marker['id'],
                     'center_x' => $marker['center']['x'],
                     'center_y' => $marker['center']['y'],
                     'rotation' => $marker['rotation'],
-                    'ocr_text' => $this->extractOcrText($absolutePath, $marker, $detectionResult->id),
+                    'ocr_text' => $ocrTexts[$index],
                 ]);
 
-                $cornerMap = [
-                    CornerPosition::TopLeft,
-                    CornerPosition::TopRight,
-                    CornerPosition::BottomRight,
-                    CornerPosition::BottomLeft,
-                ];
-
-                foreach ($cornerMap as $index => $position) {
+                foreach ($cornerMap as $cornerIndex => $position) {
                     ArucoMarkerCorner::create([
                         'aruco_marker_id' => $arucoMarker->id,
                         'position' => $position,
-                        'x' => $marker['corners'][$index]['x'],
-                        'y' => $marker['corners'][$index]['y'],
+                        'x' => $marker['corners'][$cornerIndex]['x'],
+                        'y' => $marker['corners'][$cornerIndex]['y'],
                     ]);
                 }
             }
@@ -81,16 +84,54 @@ readonly class PhotoService
             ->first();
     }
 
-    private function extractOcrText(string $absolutePath, array $marker, int $detectionResultId): ?string
+    /**
+     * Extract image snippets for all markers. Entries that fail are stored as null.
+     *
+     * @param  array[]  $markers
+     * @return (string|null)[]
+     */
+    private function extractSnippets(string $absolutePath, array $markers): array
     {
-        try {
-            $imageData = $this->imageSnippetService->extractSnippet($absolutePath, $marker);
+        return array_map(function (array $marker) use ($absolutePath): ?string {
+            try {
+                return $this->imageSnippetService->extractSnippet($absolutePath, $marker);
+            } catch (Throwable $e) {
+                report($e);
 
-            return $this->ocrService->recognizeTextFromImageData($imageData);
+                return null;
+            }
+        }, $markers);
+    }
+
+    /**
+     * Send all non-null snippets to Vision in one request, returning an indexed array of
+     * OCR text strings (or null for markers whose snippet extraction failed).
+     *
+     * @param  (string|null)[]  $snippets
+     * @return (string|null)[]
+     */
+    private function batchOcr(array $snippets): array
+    {
+        $indexedSnippets = array_filter($snippets, fn (?string $s) => $s !== null);
+
+        if (empty($indexedSnippets)) {
+            return array_fill(0, count($snippets), null);
+        }
+
+        $originalIndices = array_keys($indexedSnippets);
+
+        try {
+            $results = $this->ocrService->recognizeTextBatch(array_values($indexedSnippets));
         } catch (Throwable $e) {
             report($e);
-
-            return null;
+            $results = [];
         }
+
+        $ocrTexts = array_fill(0, count($snippets), null);
+        foreach ($originalIndices as $batchIndex => $originalIndex) {
+            $ocrTexts[$originalIndex] = $results[$batchIndex] ?? null;
+        }
+
+        return $ocrTexts;
     }
 }
