@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Project;
+use App\Models\Sketch;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -22,8 +23,15 @@ class DatabaseSeeder extends Seeder
             'password' => bcrypt('password'),
         ]);
 
-        Project::factory(30)->create([
+        $projects = Project::factory(30)->create([
             'created_by' => $user->id,
         ]);
+
+        $projects->each(function (Project $project) use ($user) {
+            Sketch::factory(3)->create([
+                'project_id' => $project->id,
+                'created_by' => $user->id,
+            ]);
+        });
     }
 }
