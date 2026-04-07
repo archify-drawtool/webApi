@@ -14,9 +14,10 @@ class PhotoController extends Controller
     {
         $request->validate([
             'photo' => 'required|image|max:10240',
+            'project_id' => 'required|integer|exists:projects,id',
         ]);
 
-        $path = $this->photoService->store($request->file('photo'));
+        $path = $this->photoService->store($request->file('photo'), $request->integer('project_id'));
 
         return response()->json([
             'message' => 'Photo uploaded successfully',
