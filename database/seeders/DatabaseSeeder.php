@@ -28,7 +28,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $projects->each(function (Project $project) use ($user) {
-            Sketch::factory(3)->create([
+            Sketch::factory(3)->withNodes()->create([
                 'project_id' => $project->id,
                 'created_by' => $user->id,
             ]);
