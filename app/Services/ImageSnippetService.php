@@ -11,7 +11,7 @@ class ImageSnippetService
     /**
      * Extract a rotation-corrected image snippet around an ArUco marker.
      *
-     * The snippet's size is based on values configured in `ocr_hitboxes.php` with the marker's clockwise rotation undone so that
+     * The snippet's size is based on values configured in `marker_config.php` with the marker's clockwise rotation undone so that
      * any surrounding text is axis-aligned before being sent to OCR.
      *
      * @param  string  $imagePath  Absolute path to the source image.
@@ -179,8 +179,8 @@ class ImageSnippetService
      */
     private function resolveHitbox(int $markerId): array
     {
-        $config = config('ocr_hitboxes', []);
-        $hitbox = $config[$markerId] ?? ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0];
+        $config = config('marker_config', []);
+        $hitbox = $config[$markerId]['hitbox'] ?? ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0];
 
         if (($hitbox['xPos'] + $hitbox['xNeg']) <= -1.0) {
             throw new InvalidArgumentException(
