@@ -36,13 +36,7 @@ class EdgeDetectionService
         $edgeMargin = config('aruco.edge_margin', 20);
         $markerConfig = config('marker_config', []);
 
-        $edgeMarkers = $persistedMarkers->filter(
-            fn ($m) => $this->resolveType($m->marker_id, $markerConfig) !== MarkerType::Node
-        );
-
-        $nodeMarkers = $persistedMarkers->filter(
-            fn ($m) => $this->resolveType($m->marker_id, $markerConfig) === MarkerType::Node
-        );
+        [$edgeMarkers, $nodeMarkers] = $this->partitionMarkers($persistedMarkers, $markerConfig);
 
         Log::debug('[EdgeDetection] Starting edge detection', [
             'edge_margin' => $edgeMargin,
@@ -70,44 +64,13 @@ class EdgeDetectionService
                 'edge_type' => $edgeType->value,
             ]);
 
-            $bestNeg = null;
-            $bestPos = null;
-            $bestNegDot = PHP_FLOAT_MAX;
-            $bestPosDot = PHP_FLOAT_MAX;
-
-            foreach ($nodeMarkers as $node) {
-                $dx = (float) $node->center_x - $centerX;
-                $dy = (float) $node->center_y - $centerY;
-
-                $dotProduct = $dx * $cosR + $dy * $sinR;
-                $perp = abs($dx * -$sinR + $dy * $cosR); // Projection of node center onto edge y-axis.
-
-                Log::debug('[EdgeDetection]   Node candidate', [
-                    'node_db_id' => $node->id,
-                    'node_marker' => $node->marker_id,
-                    'dx' => round($dx, 2),
-                    'dy' => round($dy, 2),
-                    'dot' => round($dotProduct, 2),
-                    'perp' => round($perp, 2),
-                    'within_margin' => $perp <= $edgeMargin,
-                ]);
-
-                if ($perp > $edgeMargin) {
-                    continue;
-                }
-
-                if ($dotProduct > 0 && $dotProduct < $bestPosDot) {
-                    $bestPosDot = $dotProduct;
-                    $bestPos = $node;
-                } elseif ($dotProduct < 0 && abs($dotProduct) < $bestNegDot) {
-                    $bestNegDot = abs($dotProduct);
-                    $bestNeg = $node;
-                }
-            }
+            [$bestNeg, $bestPos] = $this->findCandidateNodes(
+                $nodeMarkers, $centerX, $centerY, $cosR, $sinR, $edgeMargin
+            );
 
             Log::debug('[EdgeDetection]   Result', [
-                'source' => $bestNeg ? ['db_id' => $bestNeg->id, 'dot' => round(-$bestNegDot, 2)] : null,
-                'target' => $bestPos ? ['db_id' => $bestPos->id, 'dot' => round($bestPosDot, 2)] : null,
+                'source' => $bestNeg ? ['db_id' => $bestNeg->id] : null,
+                'target' => $bestPos ? ['db_id' => $bestPos->id] : null,
                 'emitting_edge' => $bestNeg !== null && $bestPos !== null,
             ]);
 
@@ -126,6 +89,78 @@ class EdgeDetectionService
         Log::debug('[EdgeDetection] Done', ['edges_found' => count($edges)]);
 
         return $edges;
+    }
+
+    /**
+     * Split markers into edge markers (type ≠ Node) and node markers (type = Node).
+     *
+     * @return array{0: Collection, 1: Collection}
+     */
+    private function partitionMarkers(Collection $markers, array $config): array
+    {
+        $edgeMarkers = $markers->filter(
+            fn ($m) => $this->resolveType($m->marker_id, $config) !== MarkerType::Node
+        );
+
+        $nodeMarkers = $markers->filter(
+            fn ($m) => $this->resolveType($m->marker_id, $config) === MarkerType::Node
+        );
+
+        return [$edgeMarkers, $nodeMarkers];
+    }
+
+    /**
+     * Find the closest node on each side of an edge marker's x-axis.
+     *
+     * Returns [source, target] where source is the negative-x node and target the positive-x node.
+     * Either may be null if no on-axis candidate exists on that side.
+     *
+     * @return array{0: mixed|null, 1: mixed|null}
+     */
+    private function findCandidateNodes(
+        Collection $nodeMarkers,
+        float $centerX,
+        float $centerY,
+        float $cosR,
+        float $sinR,
+        float $edgeMargin,
+    ): array {
+        $bestNeg = null;
+        $bestPos = null;
+        $bestNegDot = PHP_FLOAT_MAX;
+        $bestPosDot = PHP_FLOAT_MAX;
+
+        foreach ($nodeMarkers as $node) {
+            $dx = (float) $node->center_x - $centerX;
+            $dy = (float) $node->center_y - $centerY;
+
+            $dotProduct = $dx * $cosR + $dy * $sinR;
+            $perp = abs($dx * -$sinR + $dy * $cosR); // Projection of node center onto edge y-axis.
+
+            Log::debug('[EdgeDetection]   Node candidate', [
+                'node_db_id' => $node->id,
+                'node_marker' => $node->marker_id,
+                'dx' => round($dx, 2),
+                'dy' => round($dy, 2),
+                'dot' => round($dotProduct, 2),
+                'perp' => round($perp, 2),
+                'within_margin' => $perp <= $edgeMargin,
+            ]);
+
+            if ($perp > $edgeMargin) {
+                continue;
+            }
+
+            if ($dotProduct > 0 && $dotProduct < $bestPosDot) {
+                $bestPosDot = $dotProduct;
+                $bestPos = $node;
+            } elseif ($dotProduct < 0 && abs($dotProduct) < $bestNegDot) {
+                $bestNegDot = abs($dotProduct);
+                $bestNeg = $node;
+            }
+        }
+
+        return [$bestNeg, $bestPos];
     }
 
     private function resolveType(int $markerId, array $config): MarkerType
