@@ -7,21 +7,21 @@ beforeEach(function () {
 });
 
 describe('resolveHitbox', function () {
-    test('all configured hitboxes in ocr_hitboxes.php have non-crossing boundaries', function () {
-        $hitboxes = require base_path('config/ocr_hitboxes.php');
-        config(['ocr_hitboxes' => $hitboxes]);
+    test('all configured hitboxes in marker_config.php have non-crossing boundaries', function () {
+        $markerConfig = require base_path('config/marker_config.php');
+        config(['marker_config' => $markerConfig]);
 
         $method = new ReflectionMethod(ImageSnippetService::class, 'resolveHitbox');
 
-        foreach (array_keys($hitboxes) as $markerId) {
+        foreach (array_keys($markerConfig) as $markerId) {
             expect(fn () => $method->invoke($this->service, $markerId))
                 ->not->toThrow(InvalidArgumentException::class);
         }
     });
 
     test('throws when x boundaries cross', function () {
-        config(['ocr_hitboxes' => [
-            1 => ['xPos' => -0.8, 'xNeg' => -0.5, 'yPos' => 1.0, 'yNeg' => 1.0],
+        config(['marker_config' => [
+            1 => ['type' => 'node', 'hitbox' => ['xPos' => -0.8, 'xNeg' => -0.5, 'yPos' => 1.0, 'yNeg' => 1.0]],
         ]]);
 
         $method = new ReflectionMethod(ImageSnippetService::class, 'resolveHitbox');
@@ -31,8 +31,8 @@ describe('resolveHitbox', function () {
     });
 
     test('throws when y boundaries cross', function () {
-        config(['ocr_hitboxes' => [
-            2 => ['xPos' => 1.0, 'xNeg' => 1.0, 'yPos' => -0.8, 'yNeg' => -0.5],
+        config(['marker_config' => [
+            2 => ['type' => 'node', 'hitbox' => ['xPos' => 1.0, 'xNeg' => 1.0, 'yPos' => -0.8, 'yNeg' => -0.5]],
         ]]);
 
         $method = new ReflectionMethod(ImageSnippetService::class, 'resolveHitbox');
@@ -146,7 +146,7 @@ describe('euclideanDistance', function () {
 
 describe('extractSnippet', function () {
     test('returns valid JPEG data for a real image', function () {
-        config(['ocr_hitboxes' => []]);
+        config(['marker_config' => []]);
 
         $tmpImage = tempnam(sys_get_temp_dir(), 'snippet_test_').'.jpg';
         imagejpeg(imagecreatetruecolor(400, 300), $tmpImage);
