@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\CornerPosition;
 use App\Models\ArucoMarker;
 use App\Models\ArucoMarkerCorner;
+use App\Models\DetectedEdge;
 use App\Models\DetectionResult;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -17,6 +18,7 @@ readonly class PhotoService
         private ArucoService $arucoService,
         private ImageSnippetService $imageSnippetService,
         private OcrService $ocrService,
+        private EdgeDetectionService $edgeDetectionService,
     ) {}
 
     public function store(UploadedFile $photo): string
@@ -65,6 +67,18 @@ readonly class PhotoService
                     ]);
                 }
             }
+
+            $persistedMarkers = $detectionResult->markers()->get();
+            $edges = $this->edgeDetectionService->detectEdges($persistedMarkers);
+            foreach ($edges as $edge) {
+                DetectedEdge::create([
+                    'detection_result_id' => $detectionResult->id,
+                    'edge_marker_id' => $edge['edge_marker']->id,
+                    'source_marker_id' => $edge['source_marker']->id,
+                    'target_marker_id' => $edge['target_marker']->id,
+                    'edge_type' => $edge['edge_type']->value,
+                ]);
+            }
         } catch (Throwable $e) {
             DetectionResult::create([
                 'filename' => $filename,
@@ -79,9 +93,12 @@ readonly class PhotoService
 
     public function getDetectionResult(string $filename): ?DetectionResult
     {
-        return DetectionResult::with('markers.corners')
-            ->where('filename', $filename)
-            ->first();
+        return DetectionResult::with([
+            'markers.corners',
+            'edges.edgeMarker',
+            'edges.sourceMarker',
+            'edges.targetMarker',
+        ])->where('filename', $filename)->first();
     }
 
     /**
