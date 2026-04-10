@@ -6,6 +6,7 @@ use App\Enums\CornerPosition;
 use App\Models\ArucoMarker;
 use App\Models\ArucoMarkerCorner;
 use App\Models\DetectionResult;
+use App\Models\Photo;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -19,10 +20,16 @@ readonly class PhotoService
         private OcrService $ocrService,
     ) {}
 
-    public function store(UploadedFile $photo): string
+    public function store(UploadedFile $photo, int $projectId): string
     {
         $filename = now()->timezone('Europe/Amsterdam')->format('Y-m-d_H-i-s_v').'.'.$photo->getClientOriginalExtension();
         $path = $photo->storeAs('photos', $filename, 'local');
+
+        Photo::create([
+            'project_id' => $projectId,
+            'filename' => $filename,
+            'path' => $path,
+        ]);
 
         $absolutePath = Storage::disk('local')->path($path);
 
