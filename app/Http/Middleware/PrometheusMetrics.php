@@ -26,9 +26,9 @@ class PrometheusMetrics
             ->increment();
 
         // Response tijd per endpoint
-        Prometheus::getHistogram('http_response_time_seconds')
+        Prometheus::getGauge('http_response_time_seconds')
             ->labels([$method, $route])
-            ->observe($duration);
+            ->set($duration);
 
         return $response;
     }

@@ -27,8 +27,8 @@ class AppServiceProvider extends ServiceProvider
             ->label('route')
             ->label('status');
 
-        // Response tijd
-        Prometheus::addHistogram('http_response_time_seconds')
+        // Response tijd (gauge ipv histogram — pakket ondersteunt geen histogram)
+        Prometheus::addGauge('http_response_time_seconds')
             ->label('method')
             ->label('route');
 
@@ -39,6 +39,6 @@ class AppServiceProvider extends ServiceProvider
 
         // Inlogpogingen — wordt verhoogd in AuthController
         Prometheus::addCounter('login_attempts_total')
-            ->label('status'); // success of failed
+            ->label('status');
     }
 }
