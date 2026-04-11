@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Spatie\Prometheus\Facades\Prometheus;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +20,24 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Requests tellen
+        Prometheus::addCounter('http_requests_total')
+            ->label('method')
+            ->label('route')
+            ->label('status');
+
+        // Response tijd
+        Prometheus::addHistogram('http_response_time_seconds')
+            ->label('method')
+            ->label('route');
+
+        // Actieve tokens
+        Prometheus::addGauge('active_tokens_total')
+            ->helpText('Aantal actieve sanctum tokens')
+            ->value(fn() => \Laravel\Sanctum\PersonalAccessToken::count());
+
+        // Inlogpogingen — wordt verhoogd in AuthController
+        Prometheus::addCounter('login_attempts_total')
+            ->label('status'); // success of failed
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use Spatie\Prometheus\Facades\Prometheus;
 
 class AuthController extends Controller
 {
@@ -16,10 +17,18 @@ class AuthController extends Controller
         ]);
 
         if (! Auth::attempt($request->only('email', 'password'))) {
+            Prometheus::getCounter('login_attempts_total')
+                ->labels(['failed'])
+                ->increment();
+
             throw ValidationException::withMessages([
                 'email' => ['De opgegeven credentials zijn onjuist.'],
             ]);
         }
+
+        Prometheus::getCounter('login_attempts_total')
+            ->labels(['success'])
+            ->increment();
 
         $user = Auth::user();
         $token = $user->createToken('api-token')->plainTextToken;
