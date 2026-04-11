@@ -4,11 +4,13 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Spatie\Prometheus\Facades\Prometheus;
+use Prometheus\CollectorRegistry;
 use Symfony\Component\HttpFoundation\Response;
 
 class PrometheusMetrics
 {
+    public function __construct(private CollectorRegistry $registry) {}
+
     public function handle(Request $request, Closure $next): Response
     {
         $startTime = microtime(true);
@@ -17,18 +19,18 @@ class PrometheusMetrics
 
         $route = $request->route()?->getName() ?? $request->path();
         $method = $request->method();
-        $status = $response->getStatusCode();
+        $status = (string) $response->getStatusCode();
         $duration = microtime(true) - $startTime;
 
-        // Totaal aantal requests per endpoint en methode
-        Prometheus::getCounter('http_requests_total')
-            ->labels([$method, $route, $status])
-            ->increment();
+        // Requests tellen per endpoint en methode
+        $this->registry
+            ->getOrRegisterCounter('app', 'http_requests_total', 'Totaal aantal requests', ['method', 'route', 'status'])
+            ->inc([$method, $route, $status]);
 
         // Response tijd per endpoint
-        Prometheus::getGauge('http_response_time_seconds')
-            ->labels([$method, $route])
-            ->set($duration);
+        $this->registry
+            ->getOrRegisterGauge('app', 'http_response_time_seconds', 'Response tijd in seconden', ['method', 'route'])
+            ->set($duration, [$method, $route]);
 
         return $response;
     }
