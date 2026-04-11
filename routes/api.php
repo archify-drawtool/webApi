@@ -4,10 +4,13 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\NodeTypeController;
 use App\Http\Controllers\ProjectController;
 use Illuminate\Support\Facades\Route;
+use Spatie\Prometheus\Http\Controllers\PrometheusMetricsController;
 
 Route::get('/health', function () {
     return response()->json(['status' => 'ok'], 200);
 });
+
+Route::get('/metrics', PrometheusMetricsController::class);
 
 Route::post('/login', [AuthController::class, 'login']);
 
