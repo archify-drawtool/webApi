@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\PersonalAccessToken;
 use Spatie\Prometheus\Facades\Prometheus;
 
 class AppServiceProvider extends ServiceProvider
@@ -34,7 +35,7 @@ class AppServiceProvider extends ServiceProvider
         // Actieve tokens
         Prometheus::addGauge('active_tokens_total')
             ->helpText('Aantal actieve sanctum tokens')
-            ->value(fn() => \Laravel\Sanctum\PersonalAccessToken::count());
+            ->value(fn () => PersonalAccessToken::count());
 
         // Inlogpogingen — wordt verhoogd in AuthController
         Prometheus::addCounter('login_attempts_total')
