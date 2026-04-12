@@ -51,7 +51,11 @@ class ImageSnippetService
             $centerXRotated, $centerYRotated, $markerW, $markerH, $hitbox, $newW, $newH
         );
 
-        return $this->cropAndEncode($rotated, $cropX, $cropY, $snippetW, $snippetH);
+        // Marker position in snippet-local coordinates (robust to canvas clamping).
+        $overlayX = $centerXRotated - $markerW / 2 - $cropX;
+        $overlayY = $centerYRotated - $markerH / 2 - $cropY;
+
+        return $this->cropAndEncode($rotated, $cropX, $cropY, $snippetW, $snippetH, $overlayX, $overlayY, $markerW, $markerH);
     }
 
     private function rotateImage(GdImage $src, float $ccwDeg): GdImage
@@ -116,8 +120,11 @@ class ImageSnippetService
         return [$cropX, $cropY, $snippetW, $snippetH];
     }
 
-    private function cropAndEncode(GdImage $rotated, int $cropX, int $cropY, int $snippetW, int $snippetH): string
-    {
+    private function cropAndEncode(
+        GdImage $rotated,
+        int $cropX, int $cropY, int $snippetW, int $snippetH,
+        float $overlayX, float $overlayY, float $markerW, float $markerH
+    ): string {
         $snippet = imagecreatetruecolor($snippetW, $snippetH);
         if ($snippet === false) {
             imagedestroy($rotated);
@@ -131,6 +138,8 @@ class ImageSnippetService
             imagedestroy($snippet);
             throw new RuntimeException('imagecopy() failed.');
         }
+
+        $this->overlayMarker($snippet, $overlayX, $overlayY, $markerW, $markerH);
 
         ob_start();
         imagejpeg($snippet, null, 95);
@@ -165,6 +174,19 @@ class ImageSnippetService
         }
 
         return $image;
+    }
+
+    private function overlayMarker(GdImage $image, float $x, float $y, float $w, float $h): void
+    {
+        $white = imagecolorallocate($image, 255, 255, 255);
+        imagefilledrectangle(
+            $image,
+            (int) round($x),
+            (int) round($y),
+            (int) round($x + $w - 1),
+            (int) round($y + $h - 1),
+            $white
+        );
     }
 
     private function euclideanDistance(array $pointA, array $pointB): float
