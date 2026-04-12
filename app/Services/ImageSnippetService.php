@@ -61,7 +61,6 @@ class ImageSnippetService
     private function rotateImage(GdImage $src, float $ccwDeg): GdImage
     {
         $rotated = imagerotate($src, $ccwDeg, 0);
-        imagedestroy($src);
 
         if ($rotated === false) {
             throw new RuntimeException('imagerotate() failed.');
@@ -127,15 +126,12 @@ class ImageSnippetService
     ): string {
         $snippet = imagecreatetruecolor($snippetW, $snippetH);
         if ($snippet === false) {
-            imagedestroy($rotated);
             throw new RuntimeException('imagecreatetruecolor() failed.');
         }
 
         $copied = imagecopy($snippet, $rotated, 0, 0, $cropX, $cropY, $snippetW, $snippetH);
-        imagedestroy($rotated);
 
         if (! $copied) {
-            imagedestroy($snippet);
             throw new RuntimeException('imagecopy() failed.');
         }
 
@@ -144,7 +140,6 @@ class ImageSnippetService
         ob_start();
         imagejpeg($snippet, null, 95);
         $imageData = ob_get_clean();
-        imagedestroy($snippet);
 
         if ($imageData === false || $imageData === '') {
             throw new RuntimeException('imagejpeg() produced no output.');
