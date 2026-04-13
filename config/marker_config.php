@@ -25,10 +25,10 @@ return [
     // 0 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.5, 'yPos' => 0.0, 'yNeg' => 0.0]],
     // 1 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.5, 'yPos' => 0.0, 'yNeg' => 0.0]],
     // 2 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.5, 'yPos' => 0.0, 'yNeg' => 0.0]],
-    3 => ['type' => 'monodirectional', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.5, 'yPos' => 0.0, 'yNeg' => 0.0]],
+    // 3 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.5, 'yPos' => 0.0, 'yNeg' => 0.0]],
     // 4 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.5, 'yPos' => 0.0, 'yNeg' => 0.0]],
     // --- Edge markers ---
-    // 10 => ['type' => 'directionless',   'hitbox' => ['xPos' => 0.0, 'xNeg' => 0.0, 'yPos' => 0.0, 'yNeg' => 0.0]],
-    // 11 => ['type' => 'monodirectional', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 0.0, 'yPos' => 0.0, 'yNeg' => 0.0]],
-    // 12 => ['type' => 'bidirectional',   'hitbox' => ['xPos' => 0.0, 'xNeg' => 0.0, 'yPos' => 0.0, 'yNeg' => 0.0]],
+    21 => ['type' => 'directionless',   'hitbox' => ['xPos' => 4, 'xNeg' => 0.0, 'yPos' => 0.0, 'yNeg' => 0.0]],
+    22 => ['type' => 'monodirectional', 'hitbox' => ['xPos' => 4, 'xNeg' => 0.0, 'yPos' => 0.0, 'yNeg' => 0.0]],
+    23 => ['type' => 'bidirectional',   'hitbox' => ['xPos' => 4, 'xNeg' => 0.0, 'yPos' => 0.0, 'yNeg' => 0.0]],
 ];

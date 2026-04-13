@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Enums\MarkerType;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Log;
 
 class EdgeDetectionService
 {
@@ -38,13 +37,6 @@ class EdgeDetectionService
 
         [$edgeMarkers, $nodeMarkers] = $this->partitionMarkers($persistedMarkers, $markerConfig);
 
-        Log::debug('[EdgeDetection] Starting edge detection', [
-            'edge_margin' => $edgeMargin,
-            'total_markers' => $persistedMarkers->count(),
-            'edge_markers' => $edgeMarkers->map(fn ($m) => ['db_id' => $m->id, 'marker_id' => $m->marker_id])->values(),
-            'node_markers' => $nodeMarkers->map(fn ($m) => ['db_id' => $m->id, 'marker_id' => $m->marker_id])->values(),
-        ]);
-
         $edges = [];
 
         foreach ($edgeMarkers as $edgeMarker) {
@@ -56,23 +48,9 @@ class EdgeDetectionService
             $cosR = cos($rotationRad);
             $sinR = sin($rotationRad);
 
-            Log::debug('[EdgeDetection] Processing edge marker', [
-                'db_id' => $edgeMarker->id,
-                'marker_id' => $edgeMarker->marker_id,
-                'center' => ['x' => $centerX, 'y' => $centerY],
-                'rotation_deg' => $edgeMarker->rotation,
-                'edge_type' => $edgeType->value,
-            ]);
-
             [$bestNeg, $bestPos] = $this->findCandidateNodes(
                 $nodeMarkers, $centerX, $centerY, $cosR, $sinR, $edgeMargin
             );
-
-            Log::debug('[EdgeDetection]   Result', [
-                'source' => $bestNeg ? ['db_id' => $bestNeg->id] : null,
-                'target' => $bestPos ? ['db_id' => $bestPos->id] : null,
-                'emitting_edge' => $bestNeg !== null && $bestPos !== null,
-            ]);
 
             if ($bestNeg === null || $bestPos === null) {
                 continue;
@@ -85,8 +63,6 @@ class EdgeDetectionService
                 'edge_type' => $edgeType,
             ];
         }
-
-        Log::debug('[EdgeDetection] Done', ['edges_found' => count($edges)]);
 
         return $edges;
     }
@@ -136,16 +112,6 @@ class EdgeDetectionService
 
             $dotProduct = $dx * $cosR + $dy * $sinR;
             $perp = abs($dx * -$sinR + $dy * $cosR); // Projection of node center onto edge y-axis.
-
-            Log::debug('[EdgeDetection]   Node candidate', [
-                'node_db_id' => $node->id,
-                'node_marker' => $node->marker_id,
-                'dx' => round($dx, 2),
-                'dy' => round($dy, 2),
-                'dot' => round($dotProduct, 2),
-                'perp' => round($perp, 2),
-                'within_margin' => $perp <= $edgeMargin,
-            ]);
 
             if ($perp > $edgeMargin) {
                 continue;
