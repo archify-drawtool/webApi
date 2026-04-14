@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\CornerPosition;
 use App\Enums\MarkerType;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -22,17 +23,25 @@ class EdgeDetectionService
      *   dot  =  dx*cos(R) + dy*sin(R)   ← signed distance along +x axis
      *   perp = |−dx*sin(R) + dy*cos(R)| ← perpendicular distance
      *
-     * Nodes with perp > edge_margin are off-axis and ignored.
+     * The allowed perpendicular tolerance combines two terms:
+     *   base_margin = edge_margin_factor × edge_marker_width_px   (scales with photo distance)
+     *   angle_margin = tan(edge_angle_margin) × |dot|             (grows with axial distance)
+     *   allowed_perp = base_margin + angle_margin
+     *
+     * Nodes with perp > allowed_perp are off-axis and ignored.
      * The node with the smallest |dot| on each side is selected.
      * source = negative-x node, target = positive-x node.
      *
-     * @param  Collection  $persistedMarkers  ArucoMarker Eloquent models with id, marker_id, center_x, center_y, rotation.
+     * @param  Collection  $persistedMarkers  ArucoMarker Eloquent models with id, marker_id,
+     *                                        center_x, center_y, rotation, and eager-loaded corners.
      * @return array[] Array of edge data arrays, each with keys:
      *                 edge_marker, source_marker, target_marker, edge_type (MarkerType).
      */
     public function detectEdges(Collection $persistedMarkers): array
     {
-        $edgeMargin = config('aruco.edge_margin', 20);
+        $edgeMarginFactor = config('aruco.edge_margin', 0.5);
+        $angleMarginDeg = config('aruco.edge_angle_margin', 5.0);
+        $angleTan = tan(deg2rad($angleMarginDeg));
         $markerConfig = config('marker_config', []);
 
         [$edgeMarkers, $nodeMarkers] = $this->partitionMarkers($persistedMarkers, $markerConfig);
@@ -48,8 +57,11 @@ class EdgeDetectionService
             $cosR = cos($rotationRad);
             $sinR = sin($rotationRad);
 
+            $markerSize = $this->computeMarkerSize($edgeMarker->corners);
+            $baseMarginPx = $edgeMarginFactor * $markerSize;
+
             [$bestNeg, $bestPos] = $this->findCandidateNodes(
-                $nodeMarkers, $centerX, $centerY, $cosR, $sinR, $edgeMargin
+                $nodeMarkers, $centerX, $centerY, $cosR, $sinR, $baseMarginPx, $angleTan
             );
 
             if ($bestNeg === null || $bestPos === null) {
@@ -86,7 +98,28 @@ class EdgeDetectionService
     }
 
     /**
+     * Compute marker width in pixels from the TL → TR corner distance.
+     *
+     * @param  iterable  $corners  Collection of ArucoMarkerCorner models (or plain objects with position, x, y).
+     */
+    private function computeMarkerSize(iterable $corners): float
+    {
+        $corners = collect($corners);
+        $tl = $corners->firstWhere('position', CornerPosition::TopLeft);
+        $tr = $corners->firstWhere('position', CornerPosition::TopRight);
+
+        if ($tl === null || $tr === null) {
+            return 0.0;
+        }
+
+        return sqrt(($tr->x - $tl->x) ** 2 + ($tr->y - $tl->y) ** 2);
+    }
+
+    /**
      * Find the closest node on each side of an edge marker's x-axis.
+     *
+     * The allowed perpendicular offset combines a base margin (in pixels) and an
+     * angle-based term: allowed_perp = baseMarginPx + angleTan × |dotProduct|.
      *
      * Returns [source, target] where source is the negative-x node and target the positive-x node.
      * Either may be null if no on-axis candidate exists on that side.
@@ -99,7 +132,8 @@ class EdgeDetectionService
         float $centerY,
         float $cosR,
         float $sinR,
-        float $edgeMargin,
+        float $baseMarginPx,
+        float $angleTan,
     ): array {
         $bestNeg = null;
         $bestPos = null;
@@ -113,7 +147,8 @@ class EdgeDetectionService
             $dotProduct = $dx * $cosR + $dy * $sinR;
             $perp = abs($dx * -$sinR + $dy * $cosR); // Projection of node center onto edge y-axis.
 
-            if ($perp > $edgeMargin) {
+            $allowedPerp = $baseMarginPx + $angleTan * abs($dotProduct);
+            if ($perp > $allowedPerp) {
                 continue;
             }
 

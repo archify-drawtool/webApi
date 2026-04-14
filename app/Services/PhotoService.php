@@ -68,7 +68,7 @@ readonly class PhotoService
                 }
             }
 
-            $persistedMarkers = $detectionResult->markers()->get();
+            $persistedMarkers = $detectionResult->markers()->with('corners')->get();
             $edges = $this->edgeDetectionService->detectEdges($persistedMarkers);
             foreach ($edges as $edge) {
                 DetectedEdge::create([
