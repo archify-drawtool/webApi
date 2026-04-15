@@ -65,16 +65,14 @@ class SketchController extends Controller
     }
 
     /**
-     * Export the nodes of a sketch as a Mermaid flowchart.
+     * Export a sketch (nodes + edges) as a Mermaid flowchart.
      * Returns plain text that can be rendered directly by any Mermaid renderer.
      */
     public function exportMermaid(Project $project, Sketch $sketch, MermaidExportService $mermaid): Response
     {
         abort_if($sketch->project_id !== $project->id, 404);
 
-        $nodes = $sketch->canvas_state['nodes'] ?? [];
-
-        return response($mermaid->exportNodes($nodes), 200)
+        return response($mermaid->exportSketch($sketch->canvas_state ?? []), 200)
             ->header('Content-Type', 'text/plain');
     }
 

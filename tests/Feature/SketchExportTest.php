@@ -85,6 +85,95 @@ test('slaat nodes zonder id over en exporteert de rest correct', function () {
         ->not->toContain('Geen ID');
 });
 
+test('exporteert nodes en edges samen als geldige Mermaid flowchart', function () {
+    $sketch = Sketch::factory()->create([
+        'project_id' => $this->project->id,
+        'created_by' => $this->user->id,
+        'canvas_state' => [
+            'nodes' => [
+                ['id' => 'srv-1', 'type' => 'server',   'data' => ['label' => 'API']],
+                ['id' => 'db-1',  'type' => 'database',  'data' => ['label' => 'DB']],
+            ],
+            'edges' => [
+                [
+                    'id'        => 'e1',
+                    'source'    => 'srv-1',
+                    'target'    => 'db-1',
+                    'markerEnd' => ['type' => 'arrowclosed'],
+                ],
+            ],
+        ],
+    ]);
+
+    $body = $this->actingAs($this->user)
+        ->get("/api/projects/{$this->project->id}/sketches/{$sketch->id}/export/mermaid")
+        ->assertOk()
+        ->getContent();
+
+    expect($body)
+        ->toContain('srv-1[["API"]]')
+        ->toContain('db-1[("DB")]')
+        ->toContain('srv-1 --> db-1');
+});
+
+test('exporteert een edge met label correct', function () {
+    $sketch = Sketch::factory()->create([
+        'project_id' => $this->project->id,
+        'created_by' => $this->user->id,
+        'canvas_state' => [
+            'nodes' => [
+                ['id' => 'a', 'type' => 'server',   'data' => ['label' => 'A']],
+                ['id' => 'b', 'type' => 'database',  'data' => ['label' => 'B']],
+            ],
+            'edges' => [
+                [
+                    'id'        => 'e1',
+                    'source'    => 'a',
+                    'target'    => 'b',
+                    'markerEnd' => ['type' => 'arrowclosed'],
+                    'label'     => 'stuurt data',
+                ],
+            ],
+        ],
+    ]);
+
+    $body = $this->actingAs($this->user)
+        ->get("/api/projects/{$this->project->id}/sketches/{$sketch->id}/export/mermaid")
+        ->assertOk()
+        ->getContent();
+
+    expect($body)->toContain('a -->|"stuurt data"| b');
+});
+
+test('exporteert een bidirectionele edge correct', function () {
+    $sketch = Sketch::factory()->create([
+        'project_id' => $this->project->id,
+        'created_by' => $this->user->id,
+        'canvas_state' => [
+            'nodes' => [
+                ['id' => 'a', 'type' => 'server',   'data' => ['label' => 'A']],
+                ['id' => 'b', 'type' => 'database',  'data' => ['label' => 'B']],
+            ],
+            'edges' => [
+                [
+                    'id'          => 'e1',
+                    'source'      => 'a',
+                    'target'      => 'b',
+                    'markerStart' => ['type' => 'arrowclosed'],
+                    'markerEnd'   => ['type' => 'arrowclosed'],
+                ],
+            ],
+        ],
+    ]);
+
+    $body = $this->actingAs($this->user)
+        ->get("/api/projects/{$this->project->id}/sketches/{$sketch->id}/export/mermaid")
+        ->assertOk()
+        ->getContent();
+
+    expect($body)->toContain('a <--> b');
+});
+
 test('geeft 401 terug wanneer niet ingelogd', function () {
     $sketch = Sketch::factory()->create([
         'project_id' => $this->project->id,

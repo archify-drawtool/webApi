@@ -212,3 +212,168 @@ test('exportNodes bouwt de config shape map slechts eenmaal op', function () {
         ->toContain('usr-1(("Gebruiker"))')
         ->toContain('srv-1[["Server"]]');
 });
+
+// ─── detectArrowType ──────────────────────────────────────────────────────────
+
+test('detectArrowType geeft "none" terug wanneer er geen markers zijn', function () {
+    expect($this->service->detectArrowType(['source' => 'a', 'target' => 'b']))->toBe('none');
+});
+
+test('detectArrowType geeft "mono" terug wanneer alleen markerEnd aanwezig is', function () {
+    $edge = ['source' => 'a', 'target' => 'b', 'markerEnd' => ['type' => 'arrowclosed']];
+    expect($this->service->detectArrowType($edge))->toBe('mono');
+});
+
+test('detectArrowType geeft "bi" terug wanneer zowel markerStart als markerEnd aanwezig zijn', function () {
+    $edge = [
+        'source'      => 'a',
+        'target'      => 'b',
+        'markerStart' => ['type' => 'arrowclosed'],
+        'markerEnd'   => ['type' => 'arrowclosed'],
+    ];
+    expect($this->service->detectArrowType($edge))->toBe('bi');
+});
+
+test('detectArrowType geeft "none" terug wanneer markerEnd null is', function () {
+    $edge = ['source' => 'a', 'target' => 'b', 'markerEnd' => null];
+    expect($this->service->detectArrowType($edge))->toBe('none');
+});
+
+// ─── resolveArrow ─────────────────────────────────────────────────────────────
+
+test('resolveArrow geeft "---" terug voor none', function () {
+    expect($this->service->resolveArrow('none'))->toBe('---');
+});
+
+test('resolveArrow geeft "-->" terug voor mono', function () {
+    expect($this->service->resolveArrow('mono'))->toBe('-->');
+});
+
+test('resolveArrow geeft "<-->" terug voor bi', function () {
+    expect($this->service->resolveArrow('bi'))->toBe('<-->');
+});
+
+test('resolveArrow valt terug op default_arrow voor onbekend type', function () {
+    expect($this->service->resolveArrow('onbekend'))->toBe('-->');
+});
+
+// ─── convertEdge ─────────────────────────────────────────────────────────────
+
+test('convertEdge geeft een lijn zonder pijl terug voor een edge zonder markers', function () {
+    $edge = ['source' => 'a', 'target' => 'b'];
+    expect($this->service->convertEdge($edge))->toBe('a --- b');
+});
+
+test('convertEdge geeft een pijl terug voor een edge met markerEnd', function () {
+    $edge = ['source' => 'a', 'target' => 'b', 'markerEnd' => ['type' => 'arrowclosed']];
+    expect($this->service->convertEdge($edge))->toBe('a --> b');
+});
+
+test('convertEdge geeft een bidirectionele pijl terug voor een edge met beide markers', function () {
+    $edge = [
+        'source'      => 'a',
+        'target'      => 'b',
+        'markerStart' => ['type' => 'arrowclosed'],
+        'markerEnd'   => ['type' => 'arrowclosed'],
+    ];
+    expect($this->service->convertEdge($edge))->toBe('a <--> b');
+});
+
+test('convertEdge voegt het label toe tussen pipes wanneer een label aanwezig is', function () {
+    $edge = ['source' => 'a', 'target' => 'b', 'markerEnd' => ['type' => 'arrowclosed'], 'label' => 'API call'];
+    expect($this->service->convertEdge($edge))->toBe('a -->|"API call"| b');
+});
+
+test('convertEdge escaped aanhalingstekens in het edge label', function () {
+    $edge = ['source' => 'a', 'target' => 'b', 'markerEnd' => ['type' => 'arrowclosed'], 'label' => 'stuurt "data"'];
+    expect($this->service->convertEdge($edge))->toBe('a -->|"stuurt \\"data\\""| b');
+});
+
+test('convertEdge exporteert zonder label wanneer het label leeg is', function () {
+    $edge = ['source' => 'a', 'target' => 'b', 'markerEnd' => ['type' => 'arrowclosed'], 'label' => ''];
+    expect($this->service->convertEdge($edge))->toBe('a --> b');
+});
+
+test('convertEdge exporteert zonder label wanneer het label alleen whitespace bevat', function () {
+    $edge = ['source' => 'a', 'target' => 'b', 'markerEnd' => ['type' => 'arrowclosed'], 'label' => '   '];
+    expect($this->service->convertEdge($edge))->toBe('a --> b');
+});
+
+test('convertEdge sanitiseert source en target IDs', function () {
+    $edge = ['source' => 'node 1', 'target' => 'node 2'];
+    expect($this->service->convertEdge($edge))->toBe('node_1 --- node_2');
+});
+
+test('convertEdge gooit een InvalidArgumentException wanneer source ontbreekt', function () {
+    expect(fn () => $this->service->convertEdge(['target' => 'b']))
+        ->toThrow(\InvalidArgumentException::class, 'source and target');
+});
+
+test('convertEdge gooit een InvalidArgumentException wanneer target ontbreekt', function () {
+    expect(fn () => $this->service->convertEdge(['source' => 'a']))
+        ->toThrow(\InvalidArgumentException::class, 'source and target');
+});
+
+// ─── exportSketch ─────────────────────────────────────────────────────────────
+
+test('exportSketch combineert nodes en edges in één flowchart', function () {
+    $canvasState = [
+        'nodes' => [
+            ['id' => 'srv-1', 'type' => 'server',   'data' => ['label' => 'API']],
+            ['id' => 'db-1',  'type' => 'database',  'data' => ['label' => 'DB']],
+        ],
+        'edges' => [
+            ['id' => 'e1', 'source' => 'srv-1', 'target' => 'db-1', 'markerEnd' => ['type' => 'arrowclosed']],
+        ],
+    ];
+
+    $result = $this->service->exportSketch($canvasState);
+
+    expect($result)
+        ->toContain('flowchart TD')
+        ->toContain('srv-1[["API"]]')
+        ->toContain('db-1[("DB")]')
+        ->toContain('srv-1 --> db-1');
+});
+
+test('exportSketch geeft "flowchart TD" terug voor een lege canvas state', function () {
+    expect($this->service->exportSketch([]))->toBe('flowchart TD');
+});
+
+test('exportSketch geeft "flowchart TD" terug voor een canvas met lege nodes en edges', function () {
+    expect($this->service->exportSketch(['nodes' => [], 'edges' => []]))->toBe('flowchart TD');
+});
+
+test('exportSketch slaat edges zonder source of target stilzwijgend over', function () {
+    $canvasState = [
+        'nodes' => [
+            ['id' => 'n1', 'type' => 'server', 'data' => ['label' => 'Server']],
+        ],
+        'edges' => [
+            ['id' => 'e1', 'source' => 'n1', 'target' => 'n2', 'markerEnd' => ['type' => 'arrowclosed']],
+            ['id' => 'e2', 'source' => '',   'target' => 'n1'],
+            ['id' => 'e3', 'target' => 'n1'],
+        ],
+    ];
+
+    $result = $this->service->exportSketch($canvasState);
+
+    expect($result)
+        ->toContain('n1[["Server"]]')
+        ->toContain('n1 --> n2')
+        ->not->toContain('e2')
+        ->not->toContain('e3');
+});
+
+test('exportSketch plaatst node-declaraties voor edge-declaraties', function () {
+    $canvasState = [
+        'nodes' => [['id' => 'a', 'type' => 'server', 'data' => ['label' => 'A']]],
+        'edges' => [['source' => 'a', 'target' => 'b', 'markerEnd' => ['type' => 'arrowclosed']]],
+    ];
+
+    $lines = explode("\n", $this->service->exportSketch($canvasState));
+
+    expect($lines[0])->toBe('flowchart TD')
+        ->and($lines[1])->toContain('a[["A"]]')
+        ->and($lines[2])->toContain('a --> b');
+});
