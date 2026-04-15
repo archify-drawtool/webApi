@@ -110,12 +110,12 @@ test('convertNode escaped aanhalingstekens in het label', function () {
 
 test('convertNode gooit een InvalidArgumentException wanneer id ontbreekt', function () {
     expect(fn () => $this->service->convertNode(['data' => ['label' => 'Label']], 'rectangle'))
-        ->toThrow(\InvalidArgumentException::class, 'non-empty id');
+        ->toThrow(InvalidArgumentException::class, 'non-empty id');
 });
 
 test('convertNode gooit een InvalidArgumentException wanneer id een lege string is', function () {
     expect(fn () => $this->service->convertNode(['id' => '', 'data' => []], 'rectangle'))
-        ->toThrow(\InvalidArgumentException::class, 'non-empty id');
+        ->toThrow(InvalidArgumentException::class, 'non-empty id');
 });
 
 // ─── buildShapeMap ────────────────────────────────────────────────────────────

@@ -83,11 +83,11 @@ class MermaidExportService
 
         return match ($mermaidShape) {
             'subroutine' => "{$safeId}[[\"$escapedLabel\"]]",
-            'cylinder'   => "{$safeId}[(\"$escapedLabel\")]",
-            'hexagon'    => "{$safeId}{{\"$escapedLabel\"}}",
-            'circle'     => "{$safeId}((\"$escapedLabel\"))",
-            'rounded'    => "{$safeId}(\"$escapedLabel\")",
-            default      => "{$safeId}[\"$escapedLabel\"]",
+            'cylinder' => "{$safeId}[(\"$escapedLabel\")]",
+            'hexagon' => "{$safeId}{{\"$escapedLabel\"}}",
+            'circle' => "{$safeId}((\"$escapedLabel\"))",
+            'rounded' => "{$safeId}(\"$escapedLabel\")",
+            default => "{$safeId}[\"$escapedLabel\"]",
         };
     }
 
@@ -95,7 +95,7 @@ class MermaidExportService
      * Build a type → mermaid_shape lookup map from config/node_types.php.
      * Intended to be called once and reused when converting multiple nodes.
      *
-     * @return array<string, string>  e.g. ['database' => 'cylinder', 'user' => 'rounded', ...]
+     * @return array<string, string> e.g. ['database' => 'cylinder', 'user' => 'rounded', ...]
      */
     public function buildShapeMap(): array
     {
