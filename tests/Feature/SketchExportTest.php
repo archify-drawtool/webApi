@@ -96,9 +96,9 @@ test('exporteert nodes en edges samen als geldige Mermaid flowchart', function (
             ],
             'edges' => [
                 [
-                    'id'        => 'e1',
-                    'source'    => 'srv-1',
-                    'target'    => 'db-1',
+                    'id' => 'e1',
+                    'source' => 'srv-1',
+                    'target' => 'db-1',
                     'markerEnd' => ['type' => 'arrowclosed'],
                 ],
             ],
@@ -127,11 +127,11 @@ test('exporteert een edge met label correct', function () {
             ],
             'edges' => [
                 [
-                    'id'        => 'e1',
-                    'source'    => 'a',
-                    'target'    => 'b',
+                    'id' => 'e1',
+                    'source' => 'a',
+                    'target' => 'b',
                     'markerEnd' => ['type' => 'arrowclosed'],
-                    'label'     => 'stuurt data',
+                    'label' => 'stuurt data',
                 ],
             ],
         ],
@@ -156,11 +156,11 @@ test('exporteert een bidirectionele edge correct', function () {
             ],
             'edges' => [
                 [
-                    'id'          => 'e1',
-                    'source'      => 'a',
-                    'target'      => 'b',
+                    'id' => 'e1',
+                    'source' => 'a',
+                    'target' => 'b',
                     'markerStart' => ['type' => 'arrowclosed'],
-                    'markerEnd'   => ['type' => 'arrowclosed'],
+                    'markerEnd' => ['type' => 'arrowclosed'],
                 ],
             ],
         ],

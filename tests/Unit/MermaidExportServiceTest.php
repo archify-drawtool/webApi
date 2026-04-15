@@ -226,10 +226,10 @@ test('detectArrowType geeft "mono" terug wanneer alleen markerEnd aanwezig is', 
 
 test('detectArrowType geeft "bi" terug wanneer zowel markerStart als markerEnd aanwezig zijn', function () {
     $edge = [
-        'source'      => 'a',
-        'target'      => 'b',
+        'source' => 'a',
+        'target' => 'b',
         'markerStart' => ['type' => 'arrowclosed'],
-        'markerEnd'   => ['type' => 'arrowclosed'],
+        'markerEnd' => ['type' => 'arrowclosed'],
     ];
     expect($this->service->detectArrowType($edge))->toBe('bi');
 });
@@ -271,10 +271,10 @@ test('convertEdge geeft een pijl terug voor een edge met markerEnd', function ()
 
 test('convertEdge geeft een bidirectionele pijl terug voor een edge met beide markers', function () {
     $edge = [
-        'source'      => 'a',
-        'target'      => 'b',
+        'source' => 'a',
+        'target' => 'b',
         'markerStart' => ['type' => 'arrowclosed'],
-        'markerEnd'   => ['type' => 'arrowclosed'],
+        'markerEnd' => ['type' => 'arrowclosed'],
     ];
     expect($this->service->convertEdge($edge))->toBe('a <--> b');
 });
@@ -306,12 +306,12 @@ test('convertEdge sanitiseert source en target IDs', function () {
 
 test('convertEdge gooit een InvalidArgumentException wanneer source ontbreekt', function () {
     expect(fn () => $this->service->convertEdge(['target' => 'b']))
-        ->toThrow(\InvalidArgumentException::class, 'source and target');
+        ->toThrow(InvalidArgumentException::class, 'source and target');
 });
 
 test('convertEdge gooit een InvalidArgumentException wanneer target ontbreekt', function () {
     expect(fn () => $this->service->convertEdge(['source' => 'a']))
-        ->toThrow(\InvalidArgumentException::class, 'source and target');
+        ->toThrow(InvalidArgumentException::class, 'source and target');
 });
 
 // ─── exportSketch ─────────────────────────────────────────────────────────────

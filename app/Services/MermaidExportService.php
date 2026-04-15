@@ -89,11 +89,11 @@ class MermaidExportService
 
         return match ($mermaidShape) {
             'subroutine' => "{$safeId}[[\"$escapedLabel\"]]",
-            'cylinder'   => "{$safeId}[(\"$escapedLabel\")]",
-            'hexagon'    => "{$safeId}{{\"$escapedLabel\"}}",
-            'circle'     => "{$safeId}((\"$escapedLabel\"))",
-            'rounded'    => "{$safeId}(\"$escapedLabel\")",
-            default      => "{$safeId}[\"$escapedLabel\"]",
+            'cylinder' => "{$safeId}[(\"$escapedLabel\")]",
+            'hexagon' => "{$safeId}{{\"$escapedLabel\"}}",
+            'circle' => "{$safeId}((\"$escapedLabel\"))",
+            'rounded' => "{$safeId}(\"$escapedLabel\")",
+            default => "{$safeId}[\"$escapedLabel\"]",
         };
     }
 
@@ -101,7 +101,7 @@ class MermaidExportService
      * Build a type → mermaid_shape lookup map from config/node_types.php.
      * Intended to be called once and reused when converting multiple nodes.
      *
-     * @return array<string, string>  e.g. ['database' => 'cylinder', 'user' => 'circle', ...]
+     * @return array<string, string> e.g. ['database' => 'cylinder', 'user' => 'circle', ...]
      */
     public function buildShapeMap(): array
     {
@@ -162,15 +162,19 @@ class MermaidExportService
      *   neither present                          → 'none'
      *
      * @param  array  $edge  Raw VueFlow edge from canvas_state
-     * @return string        One of: 'none', 'mono', 'bi'
+     * @return string One of: 'none', 'mono', 'bi'
      */
     public function detectArrowType(array $edge): string
     {
         $hasStart = ! empty($edge['markerStart']);
-        $hasEnd   = ! empty($edge['markerEnd']);
+        $hasEnd = ! empty($edge['markerEnd']);
 
-        if ($hasStart && $hasEnd) return 'bi';
-        if ($hasEnd)              return 'mono';
+        if ($hasStart && $hasEnd) {
+            return 'bi';
+        }
+        if ($hasEnd) {
+            return 'mono';
+        }
 
         return 'none';
     }
@@ -180,7 +184,7 @@ class MermaidExportService
      * Falls back to config/mermaid.php → default_arrow when the type is unknown.
      *
      * @param  string  $arrowType  One of: 'none', 'mono', 'bi'
-     * @return string              e.g. '---', '-->', '<-->'
+     * @return string e.g. '---', '-->', '<-->'
      */
     public function resolveArrow(string $arrowType): string
     {
@@ -206,7 +210,6 @@ class MermaidExportService
      * // Without label
      * $service->convertEdge(['source' => 'a', 'target' => 'b', 'markerEnd' => ['type' => 'arrowclosed']]);
      * // → 'a --> b'
-     *
      * @example
      * // With label
      * $service->convertEdge(['source' => 'a', 'target' => 'b', 'markerEnd' => [...], 'label' => 'API call']);
@@ -220,7 +223,7 @@ class MermaidExportService
 
         $source = $this->sanitizeId($edge['source']);
         $target = $this->sanitizeId($edge['target']);
-        $arrow  = $this->resolveArrow($this->detectArrowType($edge));
+        $arrow = $this->resolveArrow($this->detectArrowType($edge));
 
         $rawLabel = trim($edge['label'] ?? '');
 
