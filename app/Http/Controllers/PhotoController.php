@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\PhotoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class PhotoController extends Controller
 {
@@ -14,9 +15,15 @@ class PhotoController extends Controller
     {
         $request->validate([
             'photo' => 'required|image|max:10240',
+            'project_id' => [
+                'required',
+                'integer',
+                Rule::exists('projects', 'id'),
+            ],
         ]);
 
-        $path = $this->photoService->store($request->file('photo'));
+        $projectId = $request->integer('project_id');
+        $path = $this->photoService->store($request->file('photo'), $projectId);
 
         return response()->json([
             'message' => 'Photo uploaded successfully',
