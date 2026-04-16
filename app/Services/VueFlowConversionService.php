@@ -6,6 +6,7 @@ use App\Enums\MarkerType;
 use App\Models\DetectedEdge;
 use App\Models\DetectionResult;
 use App\Models\Sketch;
+use Illuminate\Support\Facades\Auth;
 
 class VueFlowConversionService
 {
@@ -22,17 +23,17 @@ class VueFlowConversionService
         $nodeTypes = collect(config('node_types'));
 
         $nodes = $detectionResult->markers
-            ->filter(fn ($marker) => $this->isNodeMarker($marker->marker_id, $markerConfig))
+            ->filter(fn ($marker) => MarkerType::fromConfig($marker->marker_id, $markerConfig) === MarkerType::Node)
             ->map(function ($marker) use ($nodeTypes) {
                 $nodeType = $nodeTypes->firstWhere('aruco', $marker->marker_id);
 
                 return [
-                    'id'       => 'node-'.$marker->id,
-                    'type'     => $nodeType['type'] ?? 'rectangle',
+                    'id' => 'node-'.$marker->id,
+                    'type' => $nodeType['type'] ?? 'rectangle',
                     'position' => ['x' => $marker->center_x, 'y' => $marker->center_y],
-                    'data'     => [
+                    'data' => [
                         'label' => $marker->ocr_text ?? '',
-                        'icon'  => $nodeType['icon'] ?? 'square',
+                        'icon' => $nodeType['icon'] ?? 'square',
                     ],
                 ];
             })
@@ -46,9 +47,9 @@ class VueFlowConversionService
             ->all();
 
         return Sketch::create([
-            'title'        => 'Foto-schets '.now()->format('d-m-Y'),
-            'project_id'   => $projectId,
-            'created_by'   => auth()->id(),
+            'title' => 'Foto-schets '.now()->format('d-m-Y'),
+            'project_id' => $projectId,
+            'created_by' => Auth::id(),
             'canvas_state' => ['nodes' => $nodes, 'edges' => $edges],
         ]);
     }
@@ -89,8 +90,8 @@ class VueFlowConversionService
 
                 return $node;
             }, $nodes);
-            [$minX, $minY]     = [$minY, $minX];
-            [$maxX, $maxY]     = [$maxY, $maxX];
+            [$minX, $minY] = [$minY, $minX];
+            [$maxX, $maxY] = [$maxY, $maxX];
             [$rangeX, $rangeY] = [$rangeY, $rangeX];
         }
 
@@ -99,17 +100,17 @@ class VueFlowConversionService
         $canvasMinY = 100.0;
         $canvasMaxY = 700.0;
 
-        $canvasWidth  = $canvasMaxX - $canvasMinX;
+        $canvasWidth = $canvasMaxX - $canvasMinX;
         $canvasHeight = $canvasMaxY - $canvasMinY;
 
         $scale = min(
-            $rangeX > 0 ? $canvasWidth  / $rangeX : PHP_FLOAT_MAX,
+            $rangeX > 0 ? $canvasWidth / $rangeX : PHP_FLOAT_MAX,
             $rangeY > 0 ? $canvasHeight / $rangeY : PHP_FLOAT_MAX,
         );
 
         // After scaling, the bounding box spans [0, rangeX*scale] × [0, rangeY*scale].
         // Offset so it is centered within the canvas bounds.
-        $offsetX = $canvasMinX + ($canvasWidth  - $rangeX * $scale) / 2;
+        $offsetX = $canvasMinX + ($canvasWidth - $rangeX * $scale) / 2;
         $offsetY = $canvasMinY + ($canvasHeight - $rangeY * $scale) / 2;
 
         return array_map(function (array $node) use ($minX, $minY, $scale, $offsetX, $offsetY) {
@@ -120,13 +121,6 @@ class VueFlowConversionService
         }, $nodes);
     }
 
-    private function isNodeMarker(int $markerId, array $config): bool
-    {
-        $entry = $config[$markerId] ?? null;
-
-        return $entry === null || $entry['type'] === MarkerType::Node->value;
-    }
-
     private function buildEdge(DetectedEdge $edge): array
     {
         $edgeType = $edge->edge_type instanceof MarkerType
@@ -134,11 +128,11 @@ class VueFlowConversionService
             : $edge->edge_type;
 
         $vfEdge = [
-            'id'     => 'edge-'.$edge->id,
+            'id' => 'edge-'.$edge->id,
             'source' => 'node-'.$edge->source_marker_id,
             'target' => 'node-'.$edge->target_marker_id,
-            'label'  => $edge->edgeMarker->ocr_text ?? '',
-            'data'   => ['edgeType' => $edgeType],
+            'label' => $edge->edgeMarker->ocr_text ?? '',
+            'data' => ['edgeType' => $edgeType],
         ];
 
         if ($edgeType === MarkerType::Monodirectional->value) {
