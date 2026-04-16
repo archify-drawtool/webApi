@@ -11,7 +11,7 @@ class ImageSnippetService
     /**
      * Extract a rotation-corrected image snippet around an ArUco marker.
      *
-     * The snippet's size is based on values configured in `ocr_hitboxes.php` with the marker's clockwise rotation undone so that
+     * The snippet's size is based on values configured in `marker_config.php` with the marker's clockwise rotation undone so that
      * any surrounding text is axis-aligned before being sent to OCR.
      *
      * @param  string  $imagePath  Absolute path to the source image.
@@ -51,13 +51,16 @@ class ImageSnippetService
             $centerXRotated, $centerYRotated, $markerW, $markerH, $hitbox, $newW, $newH
         );
 
-        return $this->cropAndEncode($rotated, $cropX, $cropY, $snippetW, $snippetH);
+        // Marker position in snippet-local coordinates (robust to canvas clamping).
+        $overlayX = $centerXRotated - $markerW / 2 - $cropX;
+        $overlayY = $centerYRotated - $markerH / 2 - $cropY;
+
+        return $this->cropAndEncode($rotated, $cropX, $cropY, $snippetW, $snippetH, $overlayX, $overlayY, $markerW, $markerH);
     }
 
     private function rotateImage(GdImage $src, float $ccwDeg): GdImage
     {
         $rotated = imagerotate($src, $ccwDeg, 0);
-        imagedestroy($src);
 
         if ($rotated === false) {
             throw new RuntimeException('imagerotate() failed.');
@@ -116,26 +119,27 @@ class ImageSnippetService
         return [$cropX, $cropY, $snippetW, $snippetH];
     }
 
-    private function cropAndEncode(GdImage $rotated, int $cropX, int $cropY, int $snippetW, int $snippetH): string
-    {
+    private function cropAndEncode(
+        GdImage $rotated,
+        int $cropX, int $cropY, int $snippetW, int $snippetH,
+        float $overlayX, float $overlayY, float $markerW, float $markerH
+    ): string {
         $snippet = imagecreatetruecolor($snippetW, $snippetH);
         if ($snippet === false) {
-            imagedestroy($rotated);
             throw new RuntimeException('imagecreatetruecolor() failed.');
         }
 
         $copied = imagecopy($snippet, $rotated, 0, 0, $cropX, $cropY, $snippetW, $snippetH);
-        imagedestroy($rotated);
 
         if (! $copied) {
-            imagedestroy($snippet);
             throw new RuntimeException('imagecopy() failed.');
         }
+
+        $this->overlayMarker($snippet, $overlayX, $overlayY, $markerW, $markerH);
 
         ob_start();
         imagejpeg($snippet, null, 95);
         $imageData = ob_get_clean();
-        imagedestroy($snippet);
 
         if ($imageData === false || $imageData === '') {
             throw new RuntimeException('imagejpeg() produced no output.');
@@ -167,6 +171,19 @@ class ImageSnippetService
         return $image;
     }
 
+    private function overlayMarker(GdImage $image, float $x, float $y, float $w, float $h): void
+    {
+        $white = imagecolorallocate($image, 255, 255, 255);
+        imagefilledrectangle(
+            $image,
+            (int) round($x),
+            (int) round($y),
+            (int) round($x + $w - 1),
+            (int) round($y + $h - 1),
+            $white
+        );
+    }
+
     private function euclideanDistance(array $pointA, array $pointB): float
     {
         return sqrt(($pointB['x'] - $pointA['x']) ** 2 + ($pointB['y'] - $pointA['y']) ** 2);
@@ -179,8 +196,8 @@ class ImageSnippetService
      */
     private function resolveHitbox(int $markerId): array
     {
-        $config = config('ocr_hitboxes', []);
-        $hitbox = $config[$markerId] ?? ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0];
+        $config = config('marker_config', []);
+        $hitbox = $config[$markerId]['hitbox'] ?? ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0];
 
         if (($hitbox['xPos'] + $hitbox['xNeg']) <= -1.0) {
             throw new InvalidArgumentException(

@@ -7,21 +7,21 @@ beforeEach(function () {
 });
 
 describe('resolveHitbox', function () {
-    test('all configured hitboxes in ocr_hitboxes.php have non-crossing boundaries', function () {
-        $hitboxes = require base_path('config/ocr_hitboxes.php');
-        config(['ocr_hitboxes' => $hitboxes]);
+    test('all configured hitboxes in marker_config.php have non-crossing boundaries', function () {
+        $markerConfig = require base_path('config/marker_config.php');
+        config(['marker_config' => $markerConfig]);
 
         $method = new ReflectionMethod(ImageSnippetService::class, 'resolveHitbox');
 
-        foreach (array_keys($hitboxes) as $markerId) {
+        foreach (array_keys($markerConfig) as $markerId) {
             expect(fn () => $method->invoke($this->service, $markerId))
                 ->not->toThrow(InvalidArgumentException::class);
         }
     });
 
     test('throws when x boundaries cross', function () {
-        config(['ocr_hitboxes' => [
-            1 => ['xPos' => -0.8, 'xNeg' => -0.5, 'yPos' => 1.0, 'yNeg' => 1.0],
+        config(['marker_config' => [
+            1 => ['type' => 'node', 'hitbox' => ['xPos' => -0.8, 'xNeg' => -0.5, 'yPos' => 1.0, 'yNeg' => 1.0]],
         ]]);
 
         $method = new ReflectionMethod(ImageSnippetService::class, 'resolveHitbox');
@@ -31,8 +31,8 @@ describe('resolveHitbox', function () {
     });
 
     test('throws when y boundaries cross', function () {
-        config(['ocr_hitboxes' => [
-            2 => ['xPos' => 1.0, 'xNeg' => 1.0, 'yPos' => -0.8, 'yNeg' => -0.5],
+        config(['marker_config' => [
+            2 => ['type' => 'node', 'hitbox' => ['xPos' => 1.0, 'xNeg' => 1.0, 'yPos' => -0.8, 'yNeg' => -0.5]],
         ]]);
 
         $method = new ReflectionMethod(ImageSnippetService::class, 'resolveHitbox');
@@ -146,7 +146,7 @@ describe('euclideanDistance', function () {
 
 describe('extractSnippet', function () {
     test('returns valid JPEG data for a real image', function () {
-        config(['ocr_hitboxes' => []]);
+        config(['marker_config' => []]);
 
         $tmpImage = tempnam(sys_get_temp_dir(), 'snippet_test_').'.jpg';
         imagejpeg(imagecreatetruecolor(400, 300), $tmpImage);
@@ -171,5 +171,44 @@ describe('extractSnippet', function () {
         } finally {
             @unlink($tmpImage);
         }
+    });
+
+    test('marker area in snippet is painted white', function () {
+        // Marker 40×40 at (200, 150) on a 400×300 black canvas, no rotation.
+        // Hitbox xNeg=1.0 extends one marker-width to the left: snippet is 80×40.
+        // overlayX = xNeg * markerW = 1.0 * 40 = 40, overlayY = 0.
+        // Marker center in snippet: x=60, y=20.
+        config(['marker_config' => [
+            1 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 1.0, 'yPos' => 0.0, 'yNeg' => 0.0]],
+        ]]);
+
+        $tmpImage = tempnam(sys_get_temp_dir(), 'snippet_test_').'.jpg';
+        imagejpeg(imagecreatetruecolor(400, 300), $tmpImage, 100);
+
+        $marker = [
+            'id' => 1,
+            'center' => ['x' => 200.0, 'y' => 150.0],
+            'corners' => [
+                ['x' => 180.0, 'y' => 130.0], // TL
+                ['x' => 220.0, 'y' => 130.0], // TR
+                ['x' => 220.0, 'y' => 170.0], // BR
+                ['x' => 180.0, 'y' => 170.0], // BL
+            ],
+            'rotation' => 0.0,
+        ];
+
+        try {
+            $result = $this->service->extractSnippet($tmpImage, $marker);
+        } finally {
+            @unlink($tmpImage);
+        }
+
+        $snippet = imagecreatefromstring($result);
+        $rgb = imagecolorsforindex($snippet, imagecolorat($snippet, 60, 20));
+
+        // Allow a small tolerance for JPEG compression artefacts.
+        expect($rgb['red'])->toBeGreaterThanOrEqual(250)
+            ->and($rgb['green'])->toBeGreaterThanOrEqual(250)
+            ->and($rgb['blue'])->toBeGreaterThanOrEqual(250);
     });
 });
