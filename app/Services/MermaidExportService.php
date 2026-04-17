@@ -4,63 +4,26 @@ namespace App\Services;
 
 class MermaidExportService
 {
-    /**
-     * Sanitize a VueFlow node ID to a valid Mermaid identifier.
-     * Replaces any character that is not alphanumeric, a dash, or an underscore with '_'.
-     */
+    /** Sanitize a VueFlow ID to a valid Mermaid identifier. */
     public function sanitizeId(string $id): string
     {
         return preg_replace('/[^a-zA-Z0-9_\-]/', '_', $id);
     }
 
     /**
-     * Escape characters in a Mermaid node label that would break the syntax.
-     * Backslashes are escaped first, then double quotes.
-     *
-     * Note: '$' is intentionally not escaped — it has no special meaning in
-     * Mermaid flowchart label syntax, and escaping it (\$) would cause the
-     * backslash to appear literally in the rendered output.
+     * Escape characters in a Mermaid label using HTML entities.
+     * Mermaid renders HTML entities correctly inside quoted labels.
      */
     public function escapeLabel(string $label): string
     {
-        $label = str_replace('\\', '\\\\', $label);
-        $label = str_replace('"', '\\"', $label);
+        $label = str_replace('"', '&quot;', $label);
+        $label = str_replace('<', '&lt;', $label);
+        $label = str_replace('>', '&gt;', $label);
 
         return $label;
     }
 
-    /**
-     * Convert a single VueFlow node to a valid Mermaid flowchart node declaration.
-     *
-     * - The node ID is sanitized and used as the Mermaid identifier.
-     * - The node label (data.label) is used as the display name.
-     * - Falls back to the original node ID as label when no label is set.
-     * - Special characters in the label are escaped so the output remains compilable.
-     * - The mermaidShape parameter controls the Mermaid node shape syntax.
-     *
-     * @param  array{id: string, type?: string, data?: array{label?: string}}  $node
-     * @param  string  $mermaidShape  One of: 'rectangle', 'cylinder', 'rounded'
-     *
-     * @throws \InvalidArgumentException When the node has no id.
-     *
-     * @example
-     * $service->convertNode(['id' => 'abc-1', 'data' => ['label' => 'Mijn DB']], 'cylinder');
-     * // → 'abc-1[("Mijn DB")]'
-     */
-    /**
-     * All supported Mermaid node shapes and their syntax.
-     *
-     * Configurable via the 'mermaid_shape' field in config/node_types.php.
-     * Add new entries here to support additional Mermaid shapes in the future.
-     *
-     * Shape reference:
-     *   rectangle  → id["Label"]       standard box
-     *   subroutine → id[["Label"]]     double-bordered box (server)
-     *   cylinder   → id[("Label")]     database cylinder
-     *   hexagon    → id{{"Label"}}     hexagon (application)
-     *   circle     → id(("Label"))     circle (user/actor)
-     *   rounded    → id("Label")       rounded rectangle
-     */
+    /** Supported Mermaid node shape keys, configurable via config/node_types.php. */
     public const SHAPES = [
         'rectangle',
         'subroutine',
@@ -70,6 +33,13 @@ class MermaidExportService
         'rounded',
     ];
 
+    /**
+     * Convert a single VueFlow node to a Mermaid node declaration.
+     *
+     * @param  array{id: string, type?: string, data?: array{label?: string}}  $node
+     * @param  string  $mermaidShape  One of the values in self::SHAPES
+     * @throws \InvalidArgumentException When the node has no id.
+     */
     public function convertNode(array $node, string $mermaidShape = 'rectangle'): string
     {
         if (empty($node['id'])) {
@@ -91,12 +61,7 @@ class MermaidExportService
         };
     }
 
-    /**
-     * Build a type → mermaid_shape lookup map from config/node_types.php.
-     * Intended to be called once and reused when converting multiple nodes.
-     *
-     * @return array<string, string> e.g. ['database' => 'cylinder', 'user' => 'rounded', ...]
-     */
+    /** @return array<string, string> type → mermaid_shape lookup from config/node_types.php */
     public function buildShapeMap(): array
     {
         return collect(config('node_types'))
@@ -104,14 +69,7 @@ class MermaidExportService
             ->all();
     }
 
-    /**
-     * Convert a single VueFlow node to a Mermaid declaration, resolving the
-     * shape from the node's type via config/node_types.php.
-     *
-     * Falls back to 'rectangle' when the node type is unknown.
-     *
-     * @param  array{id: string, type?: string, data?: array{label?: string}}  $node
-     */
+    /** Convert a node to Mermaid, resolving shape via config/node_types.php. */
     public function nodeToMermaid(array $node): string
     {
         $shapeMap = $this->buildShapeMap();
@@ -119,15 +77,7 @@ class MermaidExportService
         return $this->convertNode($node, $shapeMap[$node['type'] ?? ''] ?? 'rectangle');
     }
 
-    /**
-     * Convert a collection of VueFlow nodes to a complete Mermaid flowchart string.
-     *
-     * - Builds the type → shape map once for the entire batch.
-     * - Silently skips malformed nodes that have no id.
-     * - Returns 'flowchart TD' (no trailing newline) when there are no valid nodes.
-     *
-     * @param  array<int, array{id?: string, type?: string, data?: array{label?: string}}>  $nodes
-     */
+    /** Convert a collection of VueFlow nodes to a Mermaid flowchart string. */
     public function exportNodes(array $nodes): string
     {
         $shapeMap = $this->buildShapeMap();

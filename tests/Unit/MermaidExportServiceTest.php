@@ -31,15 +31,15 @@ test('escapeLabel laat gewone tekst ongewijzigd', function () {
 });
 
 test('escapeLabel escaped dubbele aanhalingstekens', function () {
-    expect($this->service->escapeLabel('Server "A"'))->toBe('Server \\"A\\"');
+    expect($this->service->escapeLabel('Server "A"'))->toBe('Server &quot;A&quot;');
 });
 
-test('escapeLabel escaped backslashes', function () {
-    expect($this->service->escapeLabel('pad\\naar\\map'))->toBe('pad\\\\naar\\\\map');
+test('escapeLabel laat backslashes ongemoeid', function () {
+    expect($this->service->escapeLabel('pad\\naar\\map'))->toBe('pad\\naar\\map');
 });
 
-test('escapeLabel escaped backslashes voor aanhalingstekens in de juiste volgorde', function () {
-    expect($this->service->escapeLabel('\\"'))->toBe('\\\\\\"');
+test('escapeLabel escaped backslash gevolgd door aanhalingsteken', function () {
+    expect($this->service->escapeLabel('\\"'))->toBe('\\&quot;');
 });
 
 test('escapeLabel laat dollartekens ongemoeid (geen speciaal teken in Mermaid)', function () {
@@ -105,7 +105,7 @@ test('convertNode sanitizeert de node ID', function () {
 
 test('convertNode escaped aanhalingstekens in het label', function () {
     $node = ['id' => 'n1', 'data' => ['label' => 'Server "A"']];
-    expect($this->service->convertNode($node, 'rectangle'))->toBe('n1["Server \\"A\\""]');
+    expect($this->service->convertNode($node, 'rectangle'))->toBe('n1["Server &quot;A&quot;"]');
 });
 
 test('convertNode gooit een InvalidArgumentException wanneer id ontbreekt', function () {
@@ -198,7 +198,6 @@ test('exportNodes slaat nodes zonder id stilzwijgend over', function () {
 });
 
 test('exportNodes bouwt de config shape map slechts eenmaal op', function () {
-    // Als exportNodes de map eenmaal bouwt, moeten alle nodes correct de juiste shape krijgen.
     $nodes = [
         ['id' => 'db-1',  'type' => 'database', 'data' => ['label' => 'DB']],
         ['id' => 'usr-1', 'type' => 'user',     'data' => ['label' => 'Gebruiker']],
