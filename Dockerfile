@@ -29,6 +29,7 @@ WORKDIR /var/www/html
 COPY --from=builder /app /var/www/html
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisord.conf
+COPY docker/php-uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache

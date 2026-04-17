@@ -20,6 +20,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/projects', [ProjectController::class, 'index']);
     Route::post('/projects', [ProjectController::class, 'store']);
     Route::get('/projects/{project}', [ProjectController::class, 'show']);
+    Route::post('/photos/upload', [PhotoController::class, 'upload']);
     Route::get('/photos/{filename}/aruco', [PhotoController::class, 'getArucoResults']);
     Route::get('/sketches/{sketch}', [SketchController::class, 'show']);
     Route::get('/projects/{project}/sketches', [SketchController::class, 'index']);
@@ -28,5 +29,3 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/projects/{project}/sketches/{sketch}', [SketchController::class, 'update']);
     Route::get('/projects/{project}/sketches/{sketch}/export/mermaid', [SketchController::class, 'exportMermaid']);
 });
-
-Route::post('/photos/upload', [PhotoController::class, 'upload']);
