@@ -83,15 +83,19 @@ class VueFlowConversionService
             return $nodes;
         }
 
-        // Rotate portrait layouts (taller than wide) 90° by swapping x and y.
+        // Rotate portrait layouts (taller than wide) 90° clockwise.
         if ($rangeY > $rangeX) {
-            $nodes = array_map(function (array $node) {
-                [$node['position']['x'], $node['position']['y']] = [$node['position']['y'], $node['position']['x']];
+            $origMaxX = $maxX;
+            $nodes = array_map(function (array $node) use ($origMaxX) {
+                [$node['position']['x'], $node['position']['y']] = [
+                    $node['position']['y'],
+                    $origMaxX - $node['position']['x'],
+                ];
 
                 return $node;
             }, $nodes);
-            [$minX, $minY] = [$minY, $minX];
-            [$maxX, $maxY] = [$maxY, $maxX];
+            // After clockwise rotation: new x = old y, new y = origMaxX - old x
+            [$minX, $minY] = [$minY, 0];
             [$rangeX, $rangeY] = [$rangeY, $rangeX];
         }
 
