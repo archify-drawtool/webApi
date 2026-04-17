@@ -38,6 +38,7 @@ class MermaidExportService
      *
      * @param  array{id: string, type?: string, data?: array{label?: string}}  $node
      * @param  string  $mermaidShape  One of the values in self::SHAPES
+     *
      * @throws \InvalidArgumentException When the node has no id.
      */
     public function convertNode(array $node, string $mermaidShape = 'rectangle'): string
