@@ -4,6 +4,18 @@ namespace App\Services;
 
 class MermaidExportService
 {
+    /** Supported Mermaid node shape keys, configurable via config/node_types.php. */
+    public const SHAPES = [
+        'rectangle',
+        'subroutine',
+        'cylinder',
+        'hexagon',
+        'circle',
+        'rounded',
+    ];
+
+    // ─── Shared helpers ───────────────────────────────────────────────────────
+
     /** Sanitize a VueFlow ID to a valid Mermaid identifier. */
     public function sanitizeId(string $id): string
     {
@@ -23,15 +35,7 @@ class MermaidExportService
         return $label;
     }
 
-    /** Supported Mermaid node shape keys, configurable via config/node_types.php. */
-    public const SHAPES = [
-        'rectangle',
-        'subroutine',
-        'cylinder',
-        'hexagon',
-        'circle',
-        'rounded',
-    ];
+    // ─── Node conversion ──────────────────────────────────────────────────────
 
     /**
      * Convert a single VueFlow node to a Mermaid node declaration.
@@ -91,5 +95,85 @@ class MermaidExportService
         return $declarations !== ''
             ? "flowchart TD\n{$declarations}"
             : 'flowchart TD';
+    }
+
+    // ─── Edge conversion ──────────────────────────────────────────────────────
+
+    /**
+     * Detect arrow direction from markerStart/markerEnd.
+     * Returns one of: 'none', 'mono', 'bi'.
+     */
+    public function detectArrowType(array $edge): string
+    {
+        $hasStart = ! empty($edge['markerStart']);
+        $hasEnd = ! empty($edge['markerEnd']);
+
+        if ($hasStart && $hasEnd) {
+            return 'bi';
+        }
+        if ($hasEnd) {
+            return 'mono';
+        }
+
+        return 'none';
+    }
+
+    /** Resolve the Mermaid arrow syntax for a given type via config/mermaid.php. */
+    public function resolveArrow(string $arrowType): string
+    {
+        $arrows = config('mermaid.arrows', []);
+
+        return $arrows[$arrowType] ?? config('mermaid.default_arrow', '-->');
+    }
+
+    /**
+     * Convert a single VueFlow edge to a Mermaid edge declaration.
+     *
+     * @param  array{source: string, target: string, markerStart?: mixed, markerEnd?: mixed, label?: string}  $edge
+     *
+     * @throws \InvalidArgumentException When source or target is missing.
+     */
+    public function convertEdge(array $edge): string
+    {
+        if (empty($edge['source']) || empty($edge['target'])) {
+            throw new \InvalidArgumentException('An edge must have a non-empty source and target to be converted to Mermaid.');
+        }
+
+        $source = $this->sanitizeId($edge['source']);
+        $target = $this->sanitizeId($edge['target']);
+        $arrow = $this->resolveArrow($this->detectArrowType($edge));
+
+        $rawLabel = trim($edge['label'] ?? '');
+
+        if ($rawLabel !== '') {
+            $escapedLabel = $this->escapeLabel($rawLabel);
+
+            return "{$source} {$arrow}|\"{$escapedLabel}\"| {$target}";
+        }
+
+        return "{$source} {$arrow} {$target}";
+    }
+
+    // ─── Full sketch export ───────────────────────────────────────────────────
+
+    /** Convert a full VueFlow canvas state (nodes + edges) to a Mermaid flowchart string. */
+    public function exportSketch(array $canvasState): string
+    {
+        $nodes = $canvasState['nodes'] ?? [];
+        $edges = $canvasState['edges'] ?? [];
+
+        $shapeMap = $this->buildShapeMap();
+
+        $nodeLines = collect($nodes)
+            ->filter(fn (array $node) => ! empty($node['id']))
+            ->map(fn (array $node) => '  '.$this->convertNode($node, $shapeMap[$node['type'] ?? ''] ?? 'rectangle'));
+
+        $edgeLines = collect($edges)
+            ->filter(fn (array $edge) => ! empty($edge['source']) && ! empty($edge['target']))
+            ->map(fn (array $edge) => '  '.$this->convertEdge($edge));
+
+        $body = $nodeLines->merge($edgeLines)->join("\n");
+
+        return $body !== '' ? "flowchart TD\n{$body}" : 'flowchart TD';
     }
 }
