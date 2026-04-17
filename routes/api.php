@@ -27,4 +27,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/projects/{project}/sketches', [SketchController::class, 'store']);
     Route::get('/projects/{project}/sketches/{sketch}', [SketchController::class, 'showForProject']);
     Route::put('/projects/{project}/sketches/{sketch}', [SketchController::class, 'update']);
+    Route::get('/projects/{project}/sketches/{sketch}/export/mermaid', [SketchController::class, 'exportMermaid']);
 });
