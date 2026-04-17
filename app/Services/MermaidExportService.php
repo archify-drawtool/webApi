@@ -4,20 +4,7 @@ namespace App\Services;
 
 class MermaidExportService
 {
-    /**
-     * All supported Mermaid node shapes and their syntax.
-     *
-     * Configurable via the 'mermaid_shape' field in config/node_types.php.
-     * Add new entries here to support additional Mermaid shapes in the future.
-     *
-     * Shape reference:
-     *   rectangle  → id["Label"]       standard box
-     *   subroutine → id[["Label"]]     double-bordered box (server)
-     *   cylinder   → id[("Label")]     database cylinder
-     *   hexagon    → id{{"Label"}}     hexagon (application)
-     *   circle     → id(("Label"))     circle (user/actor)
-     *   rounded    → id("Label")       rounded rectangle
-     */
+    /** Supported Mermaid node shape keys, configurable via config/node_types.php. */
     public const SHAPES = [
         'rectangle',
         'subroutine',
@@ -29,29 +16,21 @@ class MermaidExportService
 
     // ─── Shared helpers ───────────────────────────────────────────────────────
 
-    /**
-     * Sanitize a VueFlow node or edge ID to a valid Mermaid identifier.
-     * Replaces any character that is not alphanumeric, a dash, or an underscore with '_'.
-     */
+    /** Sanitize a VueFlow ID to a valid Mermaid identifier. */
     public function sanitizeId(string $id): string
     {
         return preg_replace('/[^a-zA-Z0-9_\-]/', '_', $id);
     }
 
     /**
-     * Escape characters in a Mermaid label that would break the syntax.
-     * Backslashes are escaped first, then double quotes.
-     *
-     * Shared by both node labels and edge labels.
-     *
-     * Note: '$' is intentionally not escaped — it has no special meaning in
-     * Mermaid flowchart label syntax, and escaping it (\$) would cause the
-     * backslash to appear literally in the rendered output.
+     * Escape characters in a Mermaid label using HTML entities.
+     * Mermaid renders HTML entities correctly inside quoted labels.
      */
     public function escapeLabel(string $label): string
     {
-        $label = str_replace('\\', '\\\\', $label);
-        $label = str_replace('"', '\\"', $label);
+        $label = str_replace('"', '&quot;', $label);
+        $label = str_replace('<', '&lt;', $label);
+        $label = str_replace('>', '&gt;', $label);
 
         return $label;
     }
@@ -59,22 +38,11 @@ class MermaidExportService
     // ─── Node conversion ──────────────────────────────────────────────────────
 
     /**
-     * Convert a single VueFlow node to a valid Mermaid flowchart node declaration.
-     *
-     * - The node ID is sanitized and used as the Mermaid identifier.
-     * - The node label (data.label) is used as the display name.
-     * - Falls back to the original node ID as label when no label is set.
-     * - Special characters in the label are escaped so the output remains compilable.
-     * - The mermaidShape parameter controls the Mermaid node shape syntax.
+     * Convert a single VueFlow node to a Mermaid node declaration.
      *
      * @param  array{id: string, type?: string, data?: array{label?: string}}  $node
      * @param  string  $mermaidShape  One of the values in self::SHAPES
-     *
      * @throws \InvalidArgumentException When the node has no id.
-     *
-     * @example
-     * $service->convertNode(['id' => 'abc-1', 'data' => ['label' => 'Mijn DB']], 'cylinder');
-     * // → 'abc-1[("Mijn DB")]'
      */
     public function convertNode(array $node, string $mermaidShape = 'rectangle'): string
     {
@@ -97,12 +65,7 @@ class MermaidExportService
         };
     }
 
-    /**
-     * Build a type → mermaid_shape lookup map from config/node_types.php.
-     * Intended to be called once and reused when converting multiple nodes.
-     *
-     * @return array<string, string> e.g. ['database' => 'cylinder', 'user' => 'circle', ...]
-     */
+    /** @return array<string, string> type → mermaid_shape lookup from config/node_types.php */
     public function buildShapeMap(): array
     {
         return collect(config('node_types'))
@@ -110,14 +73,7 @@ class MermaidExportService
             ->all();
     }
 
-    /**
-     * Convert a single VueFlow node to a Mermaid declaration, resolving the
-     * shape from the node's type via config/node_types.php.
-     *
-     * Falls back to 'rectangle' when the node type is unknown.
-     *
-     * @param  array{id: string, type?: string, data?: array{label?: string}}  $node
-     */
+    /** Convert a node to Mermaid, resolving shape via config/node_types.php. */
     public function nodeToMermaid(array $node): string
     {
         $shapeMap = $this->buildShapeMap();
@@ -125,15 +81,7 @@ class MermaidExportService
         return $this->convertNode($node, $shapeMap[$node['type'] ?? ''] ?? 'rectangle');
     }
 
-    /**
-     * Convert a collection of VueFlow nodes to node declaration lines.
-     *
-     * - Builds the type → shape map once for the entire batch.
-     * - Silently skips malformed nodes that have no id.
-     *
-     * @param  array<int, array{id?: string, type?: string, data?: array{label?: string}}>  $nodes
-     * @return string[]
-     */
+    /** Convert a collection of VueFlow nodes to a Mermaid flowchart string. */
     public function exportNodes(array $nodes): string
     {
         $shapeMap = $this->buildShapeMap();
@@ -151,18 +99,8 @@ class MermaidExportService
     // ─── Edge conversion ──────────────────────────────────────────────────────
 
     /**
-     * Detect the arrow direction of a VueFlow edge based on its marker configuration.
-     *
-     * VueFlow stores arrow markers as markerStart / markerEnd on the edge object.
-     * The detected direction maps to a key in config/mermaid.php → arrows.
-     *
-     * Detection rules:
-     *   markerStart present AND markerEnd present → 'bi'
-     *   only markerEnd present                   → 'mono'
-     *   neither present                          → 'none'
-     *
-     * @param  array  $edge  Raw VueFlow edge from canvas_state
-     * @return string One of: 'none', 'mono', 'bi'
+     * Detect arrow direction from markerStart/markerEnd.
+     * Returns one of: 'none', 'mono', 'bi'.
      */
     public function detectArrowType(array $edge): string
     {
@@ -179,13 +117,7 @@ class MermaidExportService
         return 'none';
     }
 
-    /**
-     * Resolve the Mermaid arrow syntax string for a given arrow type.
-     * Falls back to config/mermaid.php → default_arrow when the type is unknown.
-     *
-     * @param  string  $arrowType  One of: 'none', 'mono', 'bi'
-     * @return string e.g. '---', '-->', '<-->'
-     */
+    /** Resolve the Mermaid arrow syntax for a given type via config/mermaid.php. */
     public function resolveArrow(string $arrowType): string
     {
         $arrows = config('mermaid.arrows', []);
@@ -194,26 +126,10 @@ class MermaidExportService
     }
 
     /**
-     * Convert a single VueFlow edge to a valid Mermaid flowchart edge declaration.
-     *
-     * - source and target IDs are sanitized.
-     * - Arrow direction is determined by the presence of markerStart / markerEnd
-     *   and resolved via config/mermaid.php → arrows.
-     * - When a label is present it is escaped and placed between pipes: -->|"label"|
-     * - When no label is present the arrow is used directly: -->
+     * Convert a single VueFlow edge to a Mermaid edge declaration.
      *
      * @param  array{source: string, target: string, markerStart?: mixed, markerEnd?: mixed, label?: string}  $edge
-     *
      * @throws \InvalidArgumentException When source or target is missing.
-     *
-     * @example
-     * // Without label
-     * $service->convertEdge(['source' => 'a', 'target' => 'b', 'markerEnd' => ['type' => 'arrowclosed']]);
-     * // → 'a --> b'
-     * @example
-     * // With label
-     * $service->convertEdge(['source' => 'a', 'target' => 'b', 'markerEnd' => [...], 'label' => 'API call']);
-     * // → 'a -->|"API call"| b'
      */
     public function convertEdge(array $edge): string
     {
@@ -238,17 +154,7 @@ class MermaidExportService
 
     // ─── Full sketch export ───────────────────────────────────────────────────
 
-    /**
-     * Convert a full VueFlow canvas state (nodes + edges) to a complete
-     * Mermaid flowchart string.
-     *
-     * - Node shape map and arrow config are each loaded once for the batch.
-     * - Malformed nodes (no id) and malformed edges (no source or target)
-     *   are silently skipped.
-     * - Returns 'flowchart TD' without trailing newline when the canvas is empty.
-     *
-     * @param  array{nodes?: array, edges?: array}  $canvasState
-     */
+    /** Convert a full VueFlow canvas state (nodes + edges) to a Mermaid flowchart string. */
     public function exportSketch(array $canvasState): string
     {
         $nodes = $canvasState['nodes'] ?? [];
