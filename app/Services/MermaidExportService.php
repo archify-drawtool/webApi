@@ -42,6 +42,7 @@ class MermaidExportService
      *
      * @param  array{id: string, type?: string, data?: array{label?: string}}  $node
      * @param  string  $mermaidShape  One of the values in self::SHAPES
+     *
      * @throws \InvalidArgumentException When the node has no id.
      */
     public function convertNode(array $node, string $mermaidShape = 'rectangle'): string
@@ -129,6 +130,7 @@ class MermaidExportService
      * Convert a single VueFlow edge to a Mermaid edge declaration.
      *
      * @param  array{source: string, target: string, markerStart?: mixed, markerEnd?: mixed, label?: string}  $edge
+     *
      * @throws \InvalidArgumentException When source or target is missing.
      */
     public function convertEdge(array $edge): string
