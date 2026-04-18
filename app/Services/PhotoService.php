@@ -36,6 +36,8 @@ readonly class PhotoService
 
         $absolutePath = Storage::disk('local')->path($path);
 
+        $this->imageSnippetService->normalizeExifOrientation($absolutePath);
+
         try {
             $markers = $this->arucoService->detectMarkers($absolutePath);
 

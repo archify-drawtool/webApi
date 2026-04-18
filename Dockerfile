@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         nginx supervisor curl python3 python3-pip python3-numpy \
         libpng-dev libjpeg-dev libfreetype6-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo pdo_mysql opcache gd \
+    && docker-php-ext-install pdo pdo_mysql opcache gd exif \
     && pip3 install --no-cache-dir --break-system-packages "opencv-contrib-python-headless==4.10.*" \
     && rm -rf /var/lib/apt/lists/*
 
