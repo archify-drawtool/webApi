@@ -85,8 +85,8 @@ class SketchController extends Controller
 
         $validated = $request->validate([
             'canvas_state' => 'required|array',
-            'canvas_state.nodes' => 'required|array',
-            'canvas_state.edges' => 'required|array',
+            'canvas_state.nodes' => 'present|array',
+            'canvas_state.edges' => 'present|array',
         ]);
 
         $sketch->update(['canvas_state' => $validated['canvas_state']]);
