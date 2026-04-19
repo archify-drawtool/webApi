@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\Sketch;
+use App\Services\MermaidExportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class SketchController extends Controller
 {
@@ -60,6 +62,18 @@ class SketchController extends Controller
         $sketch->load('creator:id,name,email');
 
         return response()->json($sketch, 201);
+    }
+
+    /**
+     * Export a sketch (nodes + edges) as a Mermaid flowchart.
+     * Returns plain text that can be rendered directly by any Mermaid renderer.
+     */
+    public function exportMermaid(Project $project, Sketch $sketch, MermaidExportService $mermaid): Response
+    {
+        abort_if($sketch->project_id !== $project->id, 404);
+
+        return response($mermaid->exportSketch($sketch->canvas_state ?? []), 200)
+            ->header('Content-Type', 'text/plain');
     }
 
     /**
