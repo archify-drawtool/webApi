@@ -8,4 +8,9 @@ enum MarkerType: string
     case Directionless = 'directionless';
     case Monodirectional = 'monodirectional';
     case Bidirectional = 'bidirectional';
+
+    public static function fromConfig(int $markerId, array $config): self
+    {
+        return self::from($config[$markerId]['type'] ?? self::Node->value);
+    }
 }

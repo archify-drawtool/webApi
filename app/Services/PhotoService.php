@@ -20,6 +20,7 @@ readonly class PhotoService
         private ImageSnippetService $imageSnippetService,
         private OcrService $ocrService,
         private EdgeDetectionService $edgeDetectionService,
+        private VueFlowConversionService $vueFlowConversionService,
     ) {}
 
     public function store(UploadedFile $photo, int $projectId): string
@@ -34,6 +35,8 @@ readonly class PhotoService
         ]);
 
         $absolutePath = Storage::disk('local')->path($path);
+
+        $this->imageSnippetService->normalizeExifOrientation($absolutePath);
 
         try {
             $markers = $this->arucoService->detectMarkers($absolutePath);
@@ -86,6 +89,8 @@ readonly class PhotoService
                     'edge_type' => $edge['edge_type']->value,
                 ]);
             }
+
+            $this->vueFlowConversionService->convert($detectionResult, $projectId);
         } catch (Throwable $e) {
             DetectionResult::create([
                 'filename' => $filename,

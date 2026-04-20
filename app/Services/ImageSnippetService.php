@@ -148,6 +148,70 @@ class ImageSnippetService
         return $imageData;
     }
 
+    /**
+     * Physically rotate a JPEG so its pixels match the EXIF Orientation tag, then overwrite
+     * the file. After this call the orientation tag is absent and orientation is always 1.
+     * No-op for non-JPEG files or when orientation is already normal.
+     */
+    public function normalizeExifOrientation(string $path): void
+    {
+        if (! function_exists('exif_read_data')) {
+            return;
+        }
+
+        $imageInfo = @getimagesize($path);
+        if ($imageInfo === false || $imageInfo[2] !== IMAGETYPE_JPEG) {
+            return;
+        }
+
+        $exif = @exif_read_data($path);
+        $orientation = is_array($exif) ? ($exif['Orientation'] ?? 1) : 1;
+
+        if ($orientation === 1) {
+            return;
+        }
+
+        $image = imagecreatefromjpeg($path);
+        if ($image === false) {
+            return;
+        }
+
+        $image = $this->correctOrientation($image, $orientation);
+        imagejpeg($image, $path, 95);
+    }
+
+    private function correctOrientation(GdImage $image, int $orientation): GdImage
+    {
+        switch ($orientation) {
+            case 2:
+                imageflip($image, IMG_FLIP_HORIZONTAL);
+
+                return $image;
+            case 3:
+                return imagerotate($image, 180, 0) ?: $image;
+            case 4:
+                imageflip($image, IMG_FLIP_VERTICAL);
+
+                return $image;
+            case 5:
+                $rotated = imagerotate($image, -90, 0) ?: $image;
+                imageflip($rotated, IMG_FLIP_HORIZONTAL);
+
+                return $rotated;
+            case 6:
+                return imagerotate($image, -90, 0) ?: $image;
+            case 7:
+                $rotated = imagerotate($image, 90, 0) ?: $image;
+                imageflip($rotated, IMG_FLIP_HORIZONTAL);
+
+                return $rotated;
+            case 8:
+                return imagerotate($image, 90, 0) ?: $image;
+            default:
+                return $image;
+        }
+    }
+
     private function loadImage(string $path): GdImage
     {
         $imageInfo = @getimagesize($path);

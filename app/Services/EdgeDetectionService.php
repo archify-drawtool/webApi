@@ -49,7 +49,7 @@ class EdgeDetectionService
         $edges = [];
 
         foreach ($edgeMarkers as $edgeMarker) {
-            $edgeType = $this->resolveType($edgeMarker->marker_id, $markerConfig);
+            $edgeType = MarkerType::fromConfig($edgeMarker->marker_id, $markerConfig);
             $centerX = (float) $edgeMarker->center_x;
             $centerY = (float) $edgeMarker->center_y;
 
@@ -87,11 +87,11 @@ class EdgeDetectionService
     private function partitionMarkers(Collection $markers, array $config): array
     {
         $edgeMarkers = $markers->filter(
-            fn ($m) => $this->resolveType($m->marker_id, $config) !== MarkerType::Node
+            fn ($m) => MarkerType::fromConfig($m->marker_id, $config) !== MarkerType::Node
         );
 
         $nodeMarkers = $markers->filter(
-            fn ($m) => $this->resolveType($m->marker_id, $config) === MarkerType::Node
+            fn ($m) => MarkerType::fromConfig($m->marker_id, $config) === MarkerType::Node
         );
 
         return [$edgeMarkers, $nodeMarkers];
@@ -162,12 +162,5 @@ class EdgeDetectionService
         }
 
         return [$bestNeg, $bestPos];
-    }
-
-    private function resolveType(int $markerId, array $config): MarkerType
-    {
-        $typeString = $config[$markerId]['type'] ?? MarkerType::Node->value;
-
-        return MarkerType::from($typeString);
     }
 }
