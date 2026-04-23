@@ -26,4 +26,9 @@ class DetectionResult extends Model
     {
         return $this->hasMany(ArucoMarker::class);
     }
+
+    public function edges(): HasMany
+    {
+        return $this->hasMany(DetectedEdge::class);
+    }
 }
