@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         nginx supervisor curl python3 python3-pip python3-numpy \
         libpng-dev libjpeg-dev libfreetype6-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo pdo_mysql opcache gd \
+    && docker-php-ext-install pdo pdo_mysql opcache gd exif \
     && pip3 install --no-cache-dir --break-system-packages "opencv-contrib-python-headless==4.10.*" \
     && rm -rf /var/lib/apt/lists/*
 
@@ -29,6 +29,7 @@ WORKDIR /var/www/html
 COPY --from=builder /app /var/www/html
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisord.conf
+COPY docker/php-uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
