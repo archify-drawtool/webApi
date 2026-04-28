@@ -1,4 +1,4 @@
-name: Main CI
+name: Productie CI
 
 on:
   push:
@@ -9,10 +9,9 @@ on:
 jobs:
   laravel-checks:
     runs-on: ubuntu-latest
-    environment: productie
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - name: Setup PHP 8.4
         uses: shivammathur/setup-php@v2
@@ -29,18 +28,8 @@ jobs:
       - name: Generate app key
         run: php artisan key:generate
 
-# Add when we have a database
-#      - name: Configure database
-#        run: |
-#          echo "DB_CONNECTION=mysql" >> .env
-#          echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
-#          echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
-#          echo "DB_DATABASE=${{ secrets.DB_DATABASE }}" >> .env
-#          echo "DB_USERNAME=${{ secrets.DB_USERNAME }}" >> .env
-#          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
-#
-#      - name: Run migrations
-#        run: php artisan migrate --force
+      - name: Run migrations
+        run: php artisan migrate
 
       - name: Run linting (Pint)
         run: ./vendor/bin/pint --test
@@ -51,14 +40,41 @@ jobs:
   docker-build-and-push:
     needs: laravel-checks
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
-      - name: Login to Docker Hub
-        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Build Docker image
-        run: docker build -t "${{ secrets.DOCKER_USERNAME }}/archify-api:main" .
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Push to Docker Hub
-        run: docker push "${{ secrets.DOCKER_USERNAME }}/archify-api:main"
+      - name: Build and push to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build -t $ECR_REGISTRY/archify-api:latest .
+          docker push $ECR_REGISTRY/archify-api:latest
+
+  deploy:
+    needs: docker-build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+            docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/archify-api:latest
+            docker-compose -f /home/ec2-user/docker-compose.yml up -d --no-deps api
+            docker-compose -f /home/ec2-user/docker-compose.yml exec -T api php artisan migrate --force

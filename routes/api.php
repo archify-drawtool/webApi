@@ -6,10 +6,13 @@ use App\Http\Controllers\PhotoController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\SketchController;
 use Illuminate\Support\Facades\Route;
+use Spatie\Prometheus\Http\Controllers\PrometheusMetricsController;
 
 Route::get('/health', function () {
     return response()->json(['status' => 'ok'], 200);
 });
+
+Route::get('/metrics', PrometheusMetricsController::class);
 
 Route::post('/login', [AuthController::class, 'login']);
 
