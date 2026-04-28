@@ -125,4 +125,14 @@ class SketchController extends Controller
 
         return response()->json($sketch);
     }
+
+    public function destroy(Request $request, Project $project, Sketch $sketch): Response
+    {
+        abort_if($sketch->project_id !== $project->id, 404);
+        abort_if($sketch->created_by !== $request->user()->id, 403);
+
+        $sketch->delete();
+
+        return response()->noContent();
+    }
 }
