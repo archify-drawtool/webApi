@@ -36,4 +36,11 @@ return [
         'aruco' => 5,
         'mermaid_shape' => 'circle',      // id(("Label"))
     ],
+    [
+        'type' => 'note',
+        'name' => 'Notitie',
+        'icon' => 'sticky-note',
+        'aruco' => null,                  // Notes worden niet via ArUco gescand
+        'mermaid_shape' => 'note',        // N1["📝 Label"]
+    ],
 ];
