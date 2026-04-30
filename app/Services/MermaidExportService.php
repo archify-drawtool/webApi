@@ -12,6 +12,7 @@ class MermaidExportService
         'hexagon',
         'circle',
         'rounded',
+        'note',
     ];
 
     // ─── Shared helpers ───────────────────────────────────────────────────────
@@ -62,6 +63,7 @@ class MermaidExportService
             'hexagon' => "{$safeId}{{\"$escapedLabel\"}}",
             'circle' => "{$safeId}((\"$escapedLabel\"))",
             'rounded' => "{$safeId}(\"$escapedLabel\")",
+            'note' => "{$safeId}[\"📝 $escapedLabel\"]",
             default => "{$safeId}[\"$escapedLabel\"]",
         };
     }

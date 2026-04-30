@@ -377,3 +377,54 @@ test('exportSketch plaatst node-declaraties voor edge-declaraties', function () 
         ->and($lines[1])->toContain('a[["A"]]')
         ->and($lines[2])->toContain('a --> b');
 });
+
+// ─── note node-type ───────────────────────────────────────────────────────────
+
+test('convertNode geeft een note-formaat terug voor shape note', function () {
+    $node = ['id' => 'note-1', 'data' => ['label' => 'Extra toelichting']];
+    expect($this->service->convertNode($node, 'note'))->toBe('note-1["📝 Extra toelichting"]');
+});
+
+test('convertNode voegt emoji toe voor note zonder label (gebruikt id als fallback)', function () {
+    $node = ['id' => 'note-1', 'data' => ['label' => '']];
+    expect($this->service->convertNode($node, 'note'))->toBe('note-1["📝 note-1"]');
+});
+
+test('convertNode escaped aanhalingstekens in het label van een note', function () {
+    $node = ['id' => 'note-1', 'data' => ['label' => 'Let op: "belangrijk"']];
+    expect($this->service->convertNode($node, 'note'))->toBe('note-1["📝 Let op: &quot;belangrijk&quot;"]');
+});
+
+test('nodeToMermaid gebruikt note shape voor type note', function () {
+    $node = ['id' => 'note-1', 'type' => 'note', 'data' => ['label' => 'Zie README']];
+    expect($this->service->nodeToMermaid($node))->toBe('note-1["📝 Zie README"]');
+});
+
+test('buildShapeMap bevat note als sleutel', function () {
+    $map = $this->service->buildShapeMap();
+    expect($map)->toHaveKey('note')
+        ->and($map['note'])->toBe('note');
+});
+
+test('exportSketch exporteert note nodes met emoji-prefix', function () {
+    $canvasState = [
+        'nodes' => [
+            ['id' => 'srv-1',  'type' => 'server', 'data' => ['label' => 'API']],
+            ['id' => 'note-1', 'type' => 'note',   'data' => ['label' => 'Let op dit']],
+        ],
+        'edges' => [
+            ['id' => 'e1', 'source' => 'srv-1', 'target' => 'note-1'],
+        ],
+    ];
+
+    $result = $this->service->exportSketch($canvasState);
+
+    expect($result)
+        ->toContain('srv-1[["API"]]')
+        ->toContain('note-1["📝 Let op dit"]')
+        ->toContain('srv-1 --- note-1');
+});
+
+test('SHAPES constante bevat note', function () {
+    expect(MermaidExportService::SHAPES)->toContain('note');
+});
