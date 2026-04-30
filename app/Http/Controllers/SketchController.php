@@ -77,6 +77,38 @@ class SketchController extends Controller
     }
 
     /**
+     * Rename a sketch within a project.
+     * The new title must be non-empty and unique within the project.
+     */
+    public function rename(Request $request, Project $project, Sketch $sketch): JsonResponse
+    {
+        abort_if($sketch->project_id !== $project->id, 404);
+
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+        ]);
+
+        $duplicate = $project->sketches()
+            ->where('title', $validated['title'])
+            ->where('id', '!=', $sketch->id)
+            ->exists();
+
+        if ($duplicate) {
+            return response()->json([
+                'message' => 'Een schets met deze naam bestaat al binnen dit project.',
+                'errors' => [
+                    'title' => ['Een schets met deze naam bestaat al binnen dit project.'],
+                ],
+            ], 422);
+        }
+
+        $sketch->update(['title' => $validated['title']]);
+        $sketch->load('creator:id,name,email');
+
+        return response()->json($sketch);
+    }
+
+    /**
      * Save (overwrite) the canvas state of an existing sketch.
      */
     public function update(Request $request, Project $project, Sketch $sketch): JsonResponse
