@@ -19,7 +19,6 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/shared/node-types', [SharedLinkController::class, 'nodesTypes']);
 Route::get('/shared/{token}', [SharedLinkController::class, 'show']);
 
-
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);

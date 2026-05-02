@@ -19,16 +19,16 @@ class SharedLinkController extends Controller
 
         if (! $sharedLink) {
             return response()->json([
-                'is_active'  => false,
-                'token'      => null,
+                'is_active' => false,
+                'token' => null,
                 'public_url' => null,
             ]);
         }
 
         return response()->json([
-            'is_active'  => $sharedLink->is_active,
-            'token'      => $sharedLink->token,
-            'public_url' => url('/api/shared/' . $sharedLink->token),
+            'is_active' => $sharedLink->is_active,
+            'token' => $sharedLink->token,
+            'public_url' => url('/api/shared/'.$sharedLink->token),
         ]);
     }
 
@@ -40,10 +40,10 @@ class SharedLinkController extends Controller
 
         if (! $sharedLink) {
             $sharedLink = SharedLink::create([
-                'token'      => Str::random(64),
-                'sketch_id'  => $sketch->id,
+                'token' => Str::random(64),
+                'sketch_id' => $sketch->id,
                 'project_id' => $project->id,
-                'is_active'  => true,
+                'is_active' => true,
             ]);
         } else {
             $sharedLink->is_active = ! $sharedLink->is_active;
@@ -51,9 +51,9 @@ class SharedLinkController extends Controller
         }
 
         return response()->json([
-            'is_active'  => $sharedLink->is_active,
-            'token'      => $sharedLink->token,
-            'public_url' => url('/api/shared/' . $sharedLink->token),
+            'is_active' => $sharedLink->is_active,
+            'token' => $sharedLink->token,
+            'public_url' => url('/api/shared/'.$sharedLink->token),
         ]);
     }
 
@@ -76,9 +76,9 @@ class SharedLinkController extends Controller
         $sharedLink->load('sketch.project');
 
         return response()->json([
-            'title'         => $sharedLink->sketch->title,
+            'title' => $sharedLink->sketch->title,
             'project_title' => $sharedLink->sketch->project->title,
-            'canvas_state'  => $sharedLink->sketch->canvas_state,
+            'canvas_state' => $sharedLink->sketch->canvas_state,
         ]);
     }
 }
