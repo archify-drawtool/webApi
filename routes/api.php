@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\NodeTypeController;
 use App\Http\Controllers\PhotoController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\SharedLinkController;
 use App\Http\Controllers\SketchController;
 use Illuminate\Support\Facades\Route;
 use Spatie\Prometheus\Http\Controllers\PrometheusMetricsController;
@@ -15,6 +16,8 @@ Route::get('/health', function () {
 Route::get('/metrics', PrometheusMetricsController::class);
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/shared/node-types', [SharedLinkController::class, 'nodesTypes']);
+Route::get('/shared/{token}', [SharedLinkController::class, 'show']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
@@ -33,4 +36,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/projects/{project}/sketches/{sketch}/rename', [SketchController::class, 'rename']);
     Route::delete('/projects/{project}/sketches/{sketch}', [SketchController::class, 'destroy']);
     Route::get('/projects/{project}/sketches/{sketch}/export/mermaid', [SketchController::class, 'exportMermaid']);
+    Route::get('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'status']);
+    Route::post('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'toggle']);
 });

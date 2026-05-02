@@ -26,7 +26,15 @@ class SketchController extends Controller
      */
     public function index(Project $project): JsonResponse
     {
-        $sketches = $project->sketches()->with('creator:id,name,email')->get();
+        $sketches = $project->sketches()
+            ->with(['creator:id,name,email', 'sharedLink:sketch_id,is_active'])
+            ->get()
+            ->map(function (Sketch $sketch) {
+                $sketch->is_shared = (bool) optional($sketch->sharedLink)->is_active;
+                unset($sketch->sharedLink);
+
+                return $sketch;
+            });
 
         return response()->json($sketches);
     }
