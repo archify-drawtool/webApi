@@ -12,6 +12,19 @@ use Illuminate\Http\Response;
 class SketchController extends Controller
 {
     /**
+     * Get all sketches owned by the logged-in user.
+     */
+    public function userIndex(Request $request): JsonResponse
+    {
+        $sketches = Sketch::where('created_by', $request->user()->id)
+            ->with('creator:id,name,email')
+            ->orderByDesc('updated_at')
+            ->get();
+
+        return response()->json($sketches);
+    }
+
+    /**
      * Get a single sketch by ID.
      */
     public function show(Sketch $sketch): JsonResponse
@@ -29,18 +42,6 @@ class SketchController extends Controller
         $sketches = $project->sketches()->with('creator:id,name,email')->get();
 
         return response()->json($sketches);
-    }
-
-    /**
-     * Get a single sketch scoped to a project.
-     */
-    public function showForProject(Project $project, Sketch $sketch): JsonResponse
-    {
-        abort_if($sketch->project_id !== $project->id, 404);
-
-        $sketch->load('creator:id,name,email');
-
-        return response()->json($sketch);
     }
 
     /**
@@ -65,55 +66,33 @@ class SketchController extends Controller
     }
 
     /**
-     * Export a sketch (nodes + edges) as a Mermaid flowchart.
-     * Returns plain text that can be rendered directly by any Mermaid renderer.
+     * Create a standalone sketch not bound to any project.
      */
-    public function exportMermaid(Project $project, Sketch $sketch, MermaidExportService $mermaid): Response
+    public function storeStandalone(Request $request): JsonResponse
     {
-        abort_if($sketch->project_id !== $project->id, 404);
-
-        return response($mermaid->exportSketch($sketch->canvas_state ?? []), 200)
-            ->header('Content-Type', 'text/plain');
-    }
-
-    /**
-     * Rename a sketch within a project.
-     * The new title must be non-empty and unique within the project.
-     */
-    public function rename(Request $request, Project $project, Sketch $sketch): JsonResponse
-    {
-        abort_if($sketch->project_id !== $project->id, 404);
-
         $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
+            'title' => 'nullable|string|max:255',
+            'canvas_state' => 'nullable|array',
         ]);
 
-        $duplicate = $project->sketches()
-            ->where('title', $validated['title'])
-            ->where('id', '!=', $sketch->id)
-            ->exists();
+        $sketch = Sketch::create([
+            'title' => $validated['title'] ?? 'Nieuwe schets',
+            'project_id' => null,
+            'created_by' => $request->user()->id,
+            'canvas_state' => $validated['canvas_state'] ?? null,
+        ]);
 
-        if ($duplicate) {
-            return response()->json([
-                'message' => 'Een schets met deze naam bestaat al binnen dit project.',
-                'errors' => [
-                    'title' => ['Een schets met deze naam bestaat al binnen dit project.'],
-                ],
-            ], 422);
-        }
-
-        $sketch->update(['title' => $validated['title']]);
         $sketch->load('creator:id,name,email');
 
-        return response()->json($sketch);
+        return response()->json($sketch, 201);
     }
 
     /**
      * Save (overwrite) the canvas state of an existing sketch.
      */
-    public function update(Request $request, Project $project, Sketch $sketch): JsonResponse
+    public function updateCanvas(Request $request, Sketch $sketch): JsonResponse
     {
-        abort_if($sketch->project_id !== $project->id, 404);
+        abort_if($sketch->created_by !== $request->user()->id, 403);
 
         $request->validate([
             'canvas_state' => 'required|array',
@@ -126,13 +105,57 @@ class SketchController extends Controller
         return response()->json($sketch);
     }
 
-    public function destroy(Request $request, Project $project, Sketch $sketch): Response
+    /**
+     * Rename a sketch. When bound to a project, the title must be unique within that project.
+     */
+    public function renameSketch(Request $request, Sketch $sketch): JsonResponse
     {
-        abort_if($sketch->project_id !== $project->id, 404);
+        abort_if($sketch->created_by !== $request->user()->id, 403);
+
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+        ]);
+
+        if ($sketch->project_id !== null) {
+            $duplicate = Sketch::where('project_id', $sketch->project_id)
+                ->where('title', $validated['title'])
+                ->where('id', '!=', $sketch->id)
+                ->exists();
+
+            if ($duplicate) {
+                return response()->json([
+                    'message' => 'Een schets met deze naam bestaat al binnen dit project.',
+                    'errors' => [
+                        'title' => ['Een schets met deze naam bestaat al binnen dit project.'],
+                    ],
+                ], 422);
+            }
+        }
+
+        $sketch->update(['title' => $validated['title']]);
+        $sketch->load('creator:id,name,email');
+
+        return response()->json($sketch);
+    }
+
+    /**
+     * Delete a sketch.
+     */
+    public function destroySketch(Request $request, Sketch $sketch): Response
+    {
         abort_if($sketch->created_by !== $request->user()->id, 403);
 
         $sketch->delete();
 
         return response()->noContent();
+    }
+
+    /**
+     * Export a sketch (nodes + edges) as a Mermaid flowchart.
+     */
+    public function exportMermaidSketch(Sketch $sketch, MermaidExportService $mermaid): Response
+    {
+        return response($mermaid->exportSketch($sketch->canvas_state ?? []), 200)
+            ->header('Content-Type', 'text/plain');
     }
 }
