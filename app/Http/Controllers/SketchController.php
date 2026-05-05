@@ -115,13 +115,13 @@ class SketchController extends Controller
     {
         abort_if($sketch->project_id !== $project->id, 404);
 
-        $validated = $request->validate([
+        $request->validate([
             'canvas_state' => 'required|array',
             'canvas_state.nodes' => 'present|array',
             'canvas_state.edges' => 'present|array',
         ]);
 
-        $sketch->update(['canvas_state' => $validated['canvas_state']]);
+        $sketch->update(['canvas_state' => $request->input('canvas_state')]);
 
         return response()->json($sketch);
     }
