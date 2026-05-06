@@ -33,4 +33,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/projects/{project}/sketches/{sketch}/rename', [SketchController::class, 'rename']);
     Route::delete('/projects/{project}/sketches/{sketch}', [SketchController::class, 'destroy']);
     Route::get('/projects/{project}/sketches/{sketch}/export/mermaid', [SketchController::class, 'exportMermaid']);
+    Route::post('/export/mermaid', [SketchController::class, 'exportMermaidFromState']);
 });

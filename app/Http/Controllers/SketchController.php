@@ -76,6 +76,18 @@ class SketchController extends Controller
             ->header('Content-Type', 'text/plain');
     }
 
+    public function exportMermaidFromState(Request $request, MermaidExportService $mermaid): Response
+    {
+        $validated = $request->validate([
+            'canvas_state' => 'required|array',
+            'canvas_state.nodes' => 'present|array',
+            'canvas_state.edges' => 'present|array',
+        ]);
+
+        return response($mermaid->exportSketch($validated['canvas_state']), 200)
+            ->header('Content-Type', 'text/plain');
+    }
+
     /**
      * Rename a sketch within a project.
      * The new title must be non-empty and unique within the project.

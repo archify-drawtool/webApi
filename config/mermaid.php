@@ -29,7 +29,12 @@ return [
     'arrows' => [
         'none' => '---',
         'mono' => '-->',
+        'mono_start' => '<--',
         'bi' => '<-->',
+        'none_dashed' => '-.-',
+        'mono_dashed' => '-.->',
+        'mono_start_dashed' => '<-.-',
+        'bi_dashed' => '<-.->',
     ],
 
     /*
