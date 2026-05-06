@@ -26,12 +26,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/photos/upload', [PhotoController::class, 'upload']);
     Route::get('/photos/{filename}/aruco', [PhotoController::class, 'getArucoResults']);
     Route::get('/sketches', [SketchController::class, 'userIndex']);
-    Route::post('/sketches', [SketchController::class, 'storeStandalone']);
+    Route::post('/sketches', [SketchController::class, 'store']);
     Route::get('/sketches/{sketch}', [SketchController::class, 'show']);
     Route::put('/sketches/{sketch}', [SketchController::class, 'updateCanvas']);
     Route::patch('/sketches/{sketch}/rename', [SketchController::class, 'renameSketch']);
     Route::delete('/sketches/{sketch}', [SketchController::class, 'destroySketch']);
     Route::get('/sketches/{sketch}/export/mermaid', [SketchController::class, 'exportMermaidSketch']);
     Route::get('/projects/{project}/sketches', [SketchController::class, 'index']);
-    Route::post('/projects/{project}/sketches', [SketchController::class, 'store']);
+
 });

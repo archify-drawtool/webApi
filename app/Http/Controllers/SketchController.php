@@ -16,7 +16,12 @@ class SketchController extends Controller
      */
     public function userIndex(Request $request): JsonResponse
     {
+        $request->validate([
+            'project_id' => ['nullable', 'integer', 'exists:projects,id'],
+        ]);
+
         $sketches = Sketch::where('created_by', $request->user()->id)
+            ->when($request->filled('project_id'), fn ($q) => $q->where('project_id', $request->project_id))
             ->with('creator:id,name,email')
             ->orderByDesc('updated_at')
             ->get();
@@ -45,39 +50,19 @@ class SketchController extends Controller
     }
 
     /**
-     * Create a new sketch for a project.
+     * Create a new sketch, optionally bound to a project.
      */
-    public function store(Request $request, Project $project): JsonResponse
-    {
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'canvas_state' => 'nullable|array',
-        ]);
-
-        $sketch = $project->sketches()->create([
-            'title' => $validated['title'],
-            'created_by' => $request->user()->id,
-            'canvas_state' => $validated['canvas_state'] ?? null,
-        ]);
-
-        $sketch->load('creator:id,name,email');
-
-        return response()->json($sketch, 201);
-    }
-
-    /**
-     * Create a standalone sketch not bound to any project.
-     */
-    public function storeStandalone(Request $request): JsonResponse
+    public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'title' => 'nullable|string|max:255',
             'canvas_state' => 'nullable|array',
+            'project_id' => ['nullable', 'integer', 'exists:projects,id'],
         ]);
 
         $sketch = Sketch::create([
-            'title' => $validated['title'] ?? 'Nieuwe schets',
-            'project_id' => null,
+            'title' => $validated['title'] ?? null,
+            'project_id' => $validated['project_id'] ?? null,
             'created_by' => $request->user()->id,
             'canvas_state' => $validated['canvas_state'] ?? null,
         ]);
