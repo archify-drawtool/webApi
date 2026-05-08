@@ -147,7 +147,12 @@ class MermaidExportService
 
         $source = $this->sanitizeId($edge['source']);
         $target = $this->sanitizeId($edge['target']);
-        $arrow = $this->resolveArrow($this->detectArrowType($edge));
+        $arrowType = $this->detectArrowType($edge);
+        $arrow = $this->resolveArrow($arrowType);
+
+        if (str_starts_with($arrowType, 'mono_start')) {
+            [$source, $target] = [$target, $source];
+        }
 
         $rawLabel = trim($edge['label'] ?? '');
 

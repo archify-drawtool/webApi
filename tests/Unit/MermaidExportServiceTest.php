@@ -280,12 +280,12 @@ test('resolveArrow geeft "-->" terug voor mono', function () {
     expect($this->service->resolveArrow('mono'))->toBe('-->');
 });
 
-test('resolveArrow geeft "<--" terug voor mono_start', function () {
-    expect($this->service->resolveArrow('mono_start'))->toBe('<--');
+test('resolveArrow geeft "-->" terug voor mono_start', function () {
+    expect($this->service->resolveArrow('mono_start'))->toBe('-->');
 });
 
-test('resolveArrow geeft "<-.-" terug voor mono_start_dashed', function () {
-    expect($this->service->resolveArrow('mono_start_dashed'))->toBe('<-.-');
+test('resolveArrow geeft ".->" terug voor mono_start_dashed', function () {
+    expect($this->service->resolveArrow('mono_start_dashed'))->toBe('-.->');
 });
 
 test('resolveArrow geeft "<-->" terug voor bi', function () {
@@ -340,14 +340,14 @@ test('convertEdge escaped aanhalingstekens in het edge label', function () {
     expect($this->service->convertEdge($edge))->toBe('a -->|"stuurt &quot;data&quot;"| b');
 });
 
-test('convertEdge geeft een pijl bij bron terug voor een edge met alleen markerStart', function () {
+test('convertEdge geeft een pijl bij bron terug voor een edge met alleen markerStart (bron/doel omgewisseld)', function () {
     $edge = ['source' => 'a', 'target' => 'b', 'markerStart' => ['type' => 'arrowclosed']];
-    expect($this->service->convertEdge($edge))->toBe('a <-- b');
+    expect($this->service->convertEdge($edge))->toBe('b --> a');
 });
 
-test('convertEdge geeft een stippelpijl bij bron terug', function () {
+test('convertEdge geeft een stippelpijl bij bron terug (bron/doel omgewisseld)', function () {
     $edge = ['source' => 'a', 'target' => 'b', 'markerStart' => ['type' => 'arrowclosed'], 'style' => ['strokeDasharray' => '6 4']];
-    expect($this->service->convertEdge($edge))->toBe('a <-.- b');
+    expect($this->service->convertEdge($edge))->toBe('b -.-> a');
 });
 
 test('convertEdge geeft een stippellijn zonder pijl terug', function () {
