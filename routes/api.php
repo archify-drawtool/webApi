@@ -36,7 +36,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/sketches/{sketch}', [SketchController::class, 'destroySketch']);
     Route::get('/sketches/{sketch}/export/mermaid', [SketchController::class, 'exportMermaidSketch']);
     Route::get('/projects/{project}/sketches', [SketchController::class, 'index']);
+    Route::post('/export/mermaid', [SketchController::class, 'exportMermaidFromState']);
     Route::get('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'status']);
     Route::post('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'toggle']);
-
 });

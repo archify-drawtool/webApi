@@ -98,6 +98,18 @@ class SketchController extends Controller
         return response()->json($sketch);
     }
 
+    public function exportMermaidFromState(Request $request, MermaidExportService $mermaid): Response
+    {
+        $validated = $request->validate([
+            'canvas_state' => 'required|array',
+            'canvas_state.nodes' => 'present|array',
+            'canvas_state.edges' => 'present|array',
+        ]);
+
+        return response($mermaid->exportSketch($validated['canvas_state']), 200)
+            ->header('Content-Type', 'text/plain');
+    }
+
     /**
      * Rename a sketch. When bound to a project, the title must be unique within that project.
      */

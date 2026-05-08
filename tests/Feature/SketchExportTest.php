@@ -183,3 +183,57 @@ test('geeft 401 terug wanneer niet ingelogd', function () {
     $this->getJson("/api/sketches/{$sketch->id}/export/mermaid")
         ->assertUnauthorized();
 });
+
+test('exporteert canvas state via POST als Mermaid flowchart', function () {
+    $body = $this->actingAs($this->user)
+        ->postJson('/api/export/mermaid', [
+            'canvas_state' => [
+                'nodes' => [
+                    ['id' => 'a', 'type' => 'server', 'data' => ['label' => 'Server']],
+                ],
+                'edges' => [],
+            ],
+        ])
+        ->assertOk()
+        ->assertHeader('Content-Type', 'text/plain; charset=UTF-8')
+        ->getContent();
+
+    expect($body)->toContain('flowchart TD')
+        ->and($body)->toContain('a[["Server"]]');
+});
+
+test('exporteert pijlen correct vanuit geposte canvas state', function () {
+    $body = $this->actingAs($this->user)
+        ->postJson('/api/export/mermaid', [
+            'canvas_state' => [
+                'nodes' => [
+                    ['id' => 'a', 'type' => 'server',   'data' => ['label' => 'A']],
+                    ['id' => 'b', 'type' => 'database',  'data' => ['label' => 'B']],
+                ],
+                'edges' => [
+                    [
+                        'id' => 'e1',
+                        'source' => 'a',
+                        'target' => 'b',
+                        'markerEnd' => ['type' => 'arrowclosed'],
+                    ],
+                ],
+            ],
+        ])
+        ->assertOk()
+        ->getContent();
+
+    expect($body)->toContain('a --> b');
+});
+
+test('exportMermaidFromState geeft 401 terug wanneer niet ingelogd', function () {
+    $this->postJson('/api/export/mermaid', [
+        'canvas_state' => ['nodes' => [], 'edges' => []],
+    ])->assertUnauthorized();
+});
+
+test('exportMermaidFromState geeft 422 terug bij ontbrekende canvas_state', function () {
+    $this->actingAs($this->user)
+        ->postJson('/api/export/mermaid', [])
+        ->assertUnprocessable();
+});
