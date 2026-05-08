@@ -28,14 +28,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/projects/{project}', [ProjectController::class, 'show']);
     Route::post('/photos/upload', [PhotoController::class, 'upload']);
     Route::get('/photos/{filename}/aruco', [PhotoController::class, 'getArucoResults']);
+    Route::get('/sketches', [SketchController::class, 'userIndex']);
+    Route::post('/sketches', [SketchController::class, 'store']);
     Route::get('/sketches/{sketch}', [SketchController::class, 'show']);
+    Route::put('/sketches/{sketch}', [SketchController::class, 'updateCanvas']);
+    Route::patch('/sketches/{sketch}/rename', [SketchController::class, 'renameSketch']);
+    Route::delete('/sketches/{sketch}', [SketchController::class, 'destroySketch']);
+    Route::get('/sketches/{sketch}/export/mermaid', [SketchController::class, 'exportMermaidSketch']);
     Route::get('/projects/{project}/sketches', [SketchController::class, 'index']);
-    Route::post('/projects/{project}/sketches', [SketchController::class, 'store']);
-    Route::get('/projects/{project}/sketches/{sketch}', [SketchController::class, 'showForProject']);
-    Route::put('/projects/{project}/sketches/{sketch}', [SketchController::class, 'update']);
-    Route::patch('/projects/{project}/sketches/{sketch}/rename', [SketchController::class, 'rename']);
-    Route::delete('/projects/{project}/sketches/{sketch}', [SketchController::class, 'destroy']);
-    Route::get('/projects/{project}/sketches/{sketch}/export/mermaid', [SketchController::class, 'exportMermaid']);
-    Route::get('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'status']);
-    Route::post('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'toggle']);
+
 });
