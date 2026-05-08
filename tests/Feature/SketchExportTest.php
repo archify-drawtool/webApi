@@ -23,7 +23,7 @@ test('exporteert een sketch met nodes als geldige Mermaid flowchart', function (
     ]);
 
     $response = $this->actingAs($this->user)
-        ->get("/api/projects/{$this->project->id}/sketches/{$sketch->id}/export/mermaid");
+        ->get("/api/sketches/{$sketch->id}/export/mermaid");
 
     $response->assertOk()
         ->assertHeader('Content-Type', 'text/plain; charset=UTF-8');
@@ -42,7 +42,7 @@ test('exporteert een lege flowchart wanneer de sketch geen nodes heeft', functio
     ]);
 
     $response = $this->actingAs($this->user)
-        ->get("/api/projects/{$this->project->id}/sketches/{$sketch->id}/export/mermaid");
+        ->get("/api/sketches/{$sketch->id}/export/mermaid");
 
     $response->assertOk();
     expect($response->getContent())->toBe('flowchart TD');
@@ -56,7 +56,7 @@ test('exporteert een lege flowchart wanneer canvas_state null is', function () {
     ]);
 
     $response = $this->actingAs($this->user)
-        ->get("/api/projects/{$this->project->id}/sketches/{$sketch->id}/export/mermaid");
+        ->get("/api/sketches/{$sketch->id}/export/mermaid");
 
     $response->assertOk();
     expect($response->getContent())->toBe('flowchart TD');
@@ -76,7 +76,7 @@ test('slaat nodes zonder id over en exporteert de rest correct', function () {
     ]);
 
     $body = $this->actingAs($this->user)
-        ->get("/api/projects/{$this->project->id}/sketches/{$sketch->id}/export/mermaid")
+        ->get("/api/sketches/{$sketch->id}/export/mermaid")
         ->assertOk()
         ->getContent();
 
@@ -106,7 +106,7 @@ test('exporteert nodes en edges samen als geldige Mermaid flowchart', function (
     ]);
 
     $body = $this->actingAs($this->user)
-        ->get("/api/projects/{$this->project->id}/sketches/{$sketch->id}/export/mermaid")
+        ->get("/api/sketches/{$sketch->id}/export/mermaid")
         ->assertOk()
         ->getContent();
 
@@ -138,7 +138,7 @@ test('exporteert een edge met label correct', function () {
     ]);
 
     $body = $this->actingAs($this->user)
-        ->get("/api/projects/{$this->project->id}/sketches/{$sketch->id}/export/mermaid")
+        ->get("/api/sketches/{$sketch->id}/export/mermaid")
         ->assertOk()
         ->getContent();
 
@@ -167,7 +167,7 @@ test('exporteert een bidirectionele edge correct', function () {
     ]);
 
     $body = $this->actingAs($this->user)
-        ->get("/api/projects/{$this->project->id}/sketches/{$sketch->id}/export/mermaid")
+        ->get("/api/sketches/{$sketch->id}/export/mermaid")
         ->assertOk()
         ->getContent();
 
@@ -180,7 +180,7 @@ test('geeft 401 terug wanneer niet ingelogd', function () {
         'created_by' => $this->user->id,
     ]);
 
-    $this->getJson("/api/projects/{$this->project->id}/sketches/{$sketch->id}/export/mermaid")
+    $this->getJson("/api/sketches/{$sketch->id}/export/mermaid")
         ->assertUnauthorized();
 });
 
@@ -236,16 +236,4 @@ test('exportMermaidFromState geeft 422 terug bij ontbrekende canvas_state', func
     $this->actingAs($this->user)
         ->postJson('/api/export/mermaid', [])
         ->assertUnprocessable();
-});
-
-test('geeft 404 terug wanneer de sketch niet bij het project hoort', function () {
-    $otherProject = Project::factory()->create(['created_by' => $this->user->id]);
-    $sketch = Sketch::factory()->create([
-        'project_id' => $otherProject->id,
-        'created_by' => $this->user->id,
-    ]);
-
-    $this->actingAs($this->user)
-        ->get("/api/projects/{$this->project->id}/sketches/{$sketch->id}/export/mermaid")
-        ->assertNotFound();
 });
