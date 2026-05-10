@@ -37,10 +37,17 @@ return [
         'mermaid_shape' => 'circle',      // id(("Label"))
     ],
     [
+        'type' => 'cloud',
+        'name' => 'Cloudomgeving',
+        'icon' => 'cloud',
+        'aruco' => 6,
+        'mermaid_shape' => 'rectangle',      // id(("Label"))
+    ],
+    [
         'type' => 'note',
         'name' => 'Notitie',
         'icon' => 'sticky-note',
-        'aruco' => null,                  // Notes worden niet via ArUco gescand
+        'aruco' => null,                  // Notes worden niet via ArUco gescand.
         'mermaid_shape' => 'note',        // N1["📝 Label"]
     ],
 ];
