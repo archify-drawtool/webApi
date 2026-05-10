@@ -27,6 +27,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/projects', [ProjectController::class, 'store']);
     Route::get('/projects/{project}', [ProjectController::class, 'show']);
     Route::post('/photos/upload', [PhotoController::class, 'upload']);
+    Route::get('/photos/{photo}/status', [PhotoController::class, 'status']);
     Route::get('/photos/{filename}/aruco', [PhotoController::class, 'getArucoResults']);
     Route::get('/sketches', [SketchController::class, 'userIndex']);
     Route::post('/sketches', [SketchController::class, 'store']);
@@ -39,4 +40,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/export/mermaid', [SketchController::class, 'exportMermaidFromState']);
     Route::get('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'status']);
     Route::post('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'toggle']);
+    Route::post('/projects/{project}/sketches/{sketch}/share/enable', [SharedLinkController::class, 'enable']);
 });

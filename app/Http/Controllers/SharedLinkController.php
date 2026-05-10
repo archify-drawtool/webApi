@@ -57,6 +57,31 @@ class SharedLinkController extends Controller
         ]);
     }
 
+    public function enable(Request $request, Project $project, Sketch $sketch): JsonResponse
+    {
+        abort_if($sketch->project_id !== $project->id, 404);
+
+        $sharedLink = SharedLink::firstOrCreate(
+            ['sketch_id' => $sketch->id],
+            [
+                'token' => Str::random(64),
+                'project_id' => $project->id,
+                'is_active' => true,
+            ]
+        );
+
+        if (! $sharedLink->is_active) {
+            $sharedLink->is_active = true;
+            $sharedLink->save();
+        }
+
+        return response()->json([
+            'is_active' => true,
+            'token' => $sharedLink->token,
+            'public_url' => url('/api/shared/'.$sharedLink->token),
+        ]);
+    }
+
     public function nodesTypes(): JsonResponse
     {
         $types = array_map(
