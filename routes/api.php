@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\NodeTypeController;
 use App\Http\Controllers\PhotoController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\SharedLinkController;
 use App\Http\Controllers\SketchController;
 use Illuminate\Support\Facades\Route;
 use Spatie\Prometheus\Http\Controllers\PrometheusMetricsController;
@@ -15,6 +16,8 @@ Route::get('/health', function () {
 Route::get('/metrics', PrometheusMetricsController::class);
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/shared/node-types', [SharedLinkController::class, 'nodesTypes']);
+Route::get('/shared/{token}', [SharedLinkController::class, 'show']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
@@ -24,11 +27,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/projects', [ProjectController::class, 'store']);
     Route::get('/projects/{project}', [ProjectController::class, 'show']);
     Route::post('/photos/upload', [PhotoController::class, 'upload']);
+    Route::get('/photos/{photo}/status', [PhotoController::class, 'status']);
     Route::get('/photos/{filename}/aruco', [PhotoController::class, 'getArucoResults']);
+    Route::get('/sketches', [SketchController::class, 'userIndex']);
+    Route::post('/sketches', [SketchController::class, 'store']);
     Route::get('/sketches/{sketch}', [SketchController::class, 'show']);
+    Route::put('/sketches/{sketch}', [SketchController::class, 'updateCanvas']);
+    Route::patch('/sketches/{sketch}/rename', [SketchController::class, 'renameSketch']);
+    Route::delete('/sketches/{sketch}', [SketchController::class, 'destroySketch']);
+    Route::get('/sketches/{sketch}/export/mermaid', [SketchController::class, 'exportMermaidSketch']);
     Route::get('/projects/{project}/sketches', [SketchController::class, 'index']);
-    Route::post('/projects/{project}/sketches', [SketchController::class, 'store']);
-    Route::get('/projects/{project}/sketches/{sketch}', [SketchController::class, 'showForProject']);
-    Route::put('/projects/{project}/sketches/{sketch}', [SketchController::class, 'update']);
-    Route::get('/projects/{project}/sketches/{sketch}/export/mermaid', [SketchController::class, 'exportMermaid']);
+    Route::post('/export/mermaid', [SketchController::class, 'exportMermaidFromState']);
+    Route::get('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'status']);
+    Route::post('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'toggle']);
+    Route::post('/projects/{project}/sketches/{sketch}/share/enable', [SharedLinkController::class, 'enable']);
 });

@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Enums\CornerPosition;
+use App\Enums\PhotoStatus;
+use App\Jobs\ProcessPhotoJob;
 use App\Models\ArucoMarker;
 use App\Models\ArucoMarkerCorner;
 use App\Models\DetectedEdge;
@@ -23,27 +25,35 @@ readonly class PhotoService
         private VueFlowConversionService $vueFlowConversionService,
     ) {}
 
-    public function store(UploadedFile $photo, int $projectId): string
+    public function store(UploadedFile $photo, int $projectId): Photo
     {
         $filename = now()->timezone('Europe/Amsterdam')->format('Y-m-d_H-i-s_v').'.'.$photo->getClientOriginalExtension();
         $path = $photo->storeAs('photos', $filename, 'local');
 
-        Photo::create([
+        $photoModel = Photo::create([
             'project_id' => $projectId,
             'filename' => $filename,
             'path' => $path,
+            'status' => PhotoStatus::Processing,
         ]);
 
-        $absolutePath = Storage::disk('local')->path($path);
+        ProcessPhotoJob::dispatch($photoModel);
 
-        $this->imageSnippetService->normalizeExifOrientation($absolutePath);
+        return $photoModel;
+    }
+
+    public function process(Photo $photo): void
+    {
+        $absolutePath = Storage::disk('local')->path($photo->path);
 
         try {
+            $this->imageSnippetService->normalizeExifOrientation($absolutePath);
+
             $markers = $this->arucoService->detectMarkers($absolutePath);
 
             $detectionResult = DetectionResult::create([
-                'filename' => $filename,
-                'image_path' => $path,
+                'filename' => $photo->filename,
+                'image_path' => $photo->path,
                 'detection_failed' => false,
                 'detected_at' => Carbon::now(),
             ]);
@@ -90,17 +100,27 @@ readonly class PhotoService
                 ]);
             }
 
-            $this->vueFlowConversionService->convert($detectionResult, $projectId);
+            $sketch = $this->vueFlowConversionService->convert($detectionResult, $photo->project_id);
+
+            $photo->update([
+                'status' => PhotoStatus::Completed,
+                'sketch_id' => $sketch->id,
+            ]);
         } catch (Throwable $e) {
+            report($e);
+
             DetectionResult::create([
-                'filename' => $filename,
-                'image_path' => $path,
+                'filename' => $photo->filename,
+                'image_path' => $photo->path,
                 'detection_failed' => true,
                 'detected_at' => Carbon::now(),
             ]);
-        }
 
-        return $path;
+            $photo->update([
+                'status' => PhotoStatus::Failed,
+                'error_message' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function getDetectionResult(string $filename): ?DetectionResult

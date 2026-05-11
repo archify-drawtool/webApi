@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\PhotoStatus;
+use App\Models\Photo;
 use App\Services\PhotoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,12 +25,34 @@ class PhotoController extends Controller
         ]);
 
         $projectId = $request->integer('project_id');
-        $path = $this->photoService->store($request->file('photo'), $projectId);
+        $photo = $this->photoService->store($request->file('photo'), $projectId);
 
         return response()->json([
             'message' => 'Photo uploaded successfully',
-            'path' => $path,
+            'photo_id' => $photo->id,
+            'status' => $photo->status->value,
         ], 201);
+    }
+
+    public function status(Photo $photo): JsonResponse
+    {
+        $response = [
+            'status' => $photo->status->value,
+            'sketch_id' => $photo->sketch_id,
+            'project_id' => $photo->project_id,
+            'nodes_count' => null,
+            'edges_count' => null,
+            'error_message' => $photo->error_message,
+        ];
+
+        if ($photo->status === PhotoStatus::Completed && $photo->sketch_id) {
+            $sketch = $photo->sketch;
+            $canvasState = is_array($sketch?->canvas_state) ? $sketch->canvas_state : [];
+            $response['nodes_count'] = count($canvasState['nodes'] ?? []);
+            $response['edges_count'] = count($canvasState['edges'] ?? []);
+        }
+
+        return response()->json($response);
     }
 
     public function getArucoResults(string $filename): JsonResponse
