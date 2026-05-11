@@ -40,5 +40,4 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/export/mermaid', [SketchController::class, 'exportMermaidFromState']);
     Route::get('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'status']);
     Route::post('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'toggle']);
-    Route::post('/projects/{project}/sketches/{sketch}/share/enable', [SharedLinkController::class, 'enable']);
 });
