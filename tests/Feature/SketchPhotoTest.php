@@ -6,7 +6,6 @@ use App\Models\Project;
 use App\Models\SharedLink;
 use App\Models\Sketch;
 use App\Models\User;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
