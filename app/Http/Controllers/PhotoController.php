@@ -54,18 +54,4 @@ class PhotoController extends Controller
 
         return response()->json($response);
     }
-
-    public function getArucoResults(string $filename): JsonResponse
-    {
-        $result = $this->photoService->getDetectionResult($filename);
-
-        if ($result === null) {
-            return response()->json(
-                ['message' => 'No detection result found for this filename.'],
-                404
-            );
-        }
-
-        return response()->json($result);
-    }
 }
