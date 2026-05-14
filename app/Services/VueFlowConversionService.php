@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\MarkerType;
+use App\Helpers\MarkerGeometry;
 use App\Models\DetectedEdge;
 use App\Models\DetectionResult;
 use App\Models\Sketch;
@@ -13,7 +14,7 @@ class VueFlowConversionService
     public function convert(DetectionResult $detectionResult, int $projectId): Sketch
     {
         $detectionResult->loadMissing([
-            'markers',
+            'markers.corners',
             'edges.edgeMarker',
             'edges.sourceMarker',
             'edges.targetMarker',
@@ -26,11 +27,18 @@ class VueFlowConversionService
             ->filter(fn ($marker) => MarkerType::fromConfig($marker->marker_id, $markerConfig) === MarkerType::Node)
             ->map(function ($marker) use ($nodeTypes) {
                 $nodeType = $nodeTypes->firstWhere('aruco', $marker->marker_id);
+                $dims = MarkerGeometry::markerDimensions($marker->corners);
+                $position = MarkerGeometry::hitboxCenter(
+                    (float) $marker->center_x, (float) $marker->center_y,
+                    $dims['width'], $dims['height'],
+                    MarkerGeometry::resolveHitbox((int) $marker->marker_id),
+                    (float) $marker->rotation
+                );
 
                 return [
                     'id' => 'node-'.$marker->id,
                     'type' => $nodeType['type'] ?? 'rectangle',
-                    'position' => ['x' => $marker->center_x, 'y' => $marker->center_y],
+                    'position' => $position,
                     'data' => [
                         'label' => $marker->ocr_text ?? '',
                         'icon' => $nodeType['icon'] ?? 'square',

@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Enums\CornerPosition;
 use App\Enums\MarkerType;
+use App\Helpers\MarkerGeometry;
 use Illuminate\Database\Eloquent\Collection;
 
 class EdgeDetectionService
@@ -57,8 +57,8 @@ class EdgeDetectionService
             $cosR = cos($rotationRad);
             $sinR = sin($rotationRad);
 
-            $markerSize = $this->computeMarkerSize($edgeMarker->corners);
-            $baseMarginPx = $edgeMarginFactor * $markerSize;
+            $edgeDims = MarkerGeometry::markerDimensions($edgeMarker->corners);
+            $baseMarginPx = $edgeMarginFactor * $edgeDims['width'];
 
             [$bestNeg, $bestPos] = $this->findCandidateNodes(
                 $nodeMarkers, $centerX, $centerY, $cosR, $sinR, $baseMarginPx, $angleTan
@@ -98,24 +98,6 @@ class EdgeDetectionService
     }
 
     /**
-     * Compute marker width in pixels from the TL → TR corner distance.
-     *
-     * @param  iterable  $corners  Collection of ArucoMarkerCorner models (or plain objects with position, x, y).
-     */
-    private function computeMarkerSize(iterable $corners): float
-    {
-        $corners = collect($corners);
-        $tl = $corners->firstWhere('position', CornerPosition::TopLeft);
-        $tr = $corners->firstWhere('position', CornerPosition::TopRight);
-
-        if ($tl === null || $tr === null) {
-            return 0.0;
-        }
-
-        return sqrt(($tr->x - $tl->x) ** 2 + ($tr->y - $tl->y) ** 2);
-    }
-
-    /**
      * Find the closest node on each side of an edge marker's x-axis.
      *
      * The allowed perpendicular offset combines a base margin (in pixels) and an
@@ -141,8 +123,15 @@ class EdgeDetectionService
         $bestPosDot = PHP_FLOAT_MAX;
 
         foreach ($nodeMarkers as $node) {
-            $dx = (float) $node->center_x - $centerX;
-            $dy = (float) $node->center_y - $centerY;
+            $nodeDims = MarkerGeometry::markerDimensions($node->corners);
+            $nodeCenter = MarkerGeometry::hitboxCenter(
+                (float) $node->center_x, (float) $node->center_y,
+                $nodeDims['width'], $nodeDims['height'],
+                MarkerGeometry::resolveHitbox((int) $node->marker_id),
+                (float) $node->rotation
+            );
+            $dx = $nodeCenter['x'] - $centerX;
+            $dy = $nodeCenter['y'] - $centerY;
 
             $dotProduct = $dx * $cosR + $dy * $sinR;
             $perp = abs($dx * -$sinR + $dy * $cosR); // Projection of node center onto edge y-axis.

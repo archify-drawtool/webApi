@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
+use App\Helpers\MarkerGeometry;
 use GdImage;
-use InvalidArgumentException;
 use RuntimeException;
 
 class ImageSnippetService
@@ -31,10 +31,10 @@ class ImageSnippetService
 
         // corners: TL=0, TR=1, BR=2, BL=3 (OpenCV)
         $corners = $marker['corners'];
-        $markerW = $this->euclideanDistance($corners[0], $corners[1]); // TL → TR
-        $markerH = $this->euclideanDistance($corners[0], $corners[3]); // TL → BL
+        $markerW = MarkerGeometry::euclideanDistance($corners[0]['x'], $corners[0]['y'], $corners[1]['x'], $corners[1]['y']); // TL → TR
+        $markerH = MarkerGeometry::euclideanDistance($corners[0]['x'], $corners[0]['y'], $corners[3]['x'], $corners[3]['y']); // TL → BL
 
-        $hitbox = $this->resolveHitbox((int) $marker['id']);
+        $hitbox = MarkerGeometry::resolveHitbox((int) $marker['id']);
 
         // imagerotate() rotates counter-clockwise (ccw) for positive angles.
         $ccwDeg = (float) $marker['rotation'];
@@ -248,32 +248,4 @@ class ImageSnippetService
         );
     }
 
-    private function euclideanDistance(array $pointA, array $pointB): float
-    {
-        return sqrt(($pointB['x'] - $pointA['x']) ** 2 + ($pointB['y'] - $pointA['y']) ** 2);
-    }
-
-    /**
-     * Look up and validate the OCR hitbox for the given marker ID.
-     *
-     * @throws InvalidArgumentException When the hitbox boundaries cross each other.
-     */
-    private function resolveHitbox(int $markerId): array
-    {
-        $config = config('marker_config', []);
-        $hitbox = $config[$markerId]['hitbox'] ?? ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0];
-
-        if (($hitbox['xPos'] + $hitbox['xNeg']) <= -1.0) {
-            throw new InvalidArgumentException(
-                "OCR hitbox for marker $markerId: xNeg ({$hitbox['xNeg']}) surpasses xPos ({$hitbox['xPos']})."
-            );
-        }
-        if (($hitbox['yPos'] + $hitbox['yNeg']) <= -1.0) {
-            throw new InvalidArgumentException(
-                "OCR hitbox for marker $markerId: yNeg ({$hitbox['yNeg']}) surpasses yPos ({$hitbox['yPos']})."
-            );
-        }
-
-        return $hitbox;
-    }
 }
