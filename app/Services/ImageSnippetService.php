@@ -247,5 +247,4 @@ class ImageSnippetService
             $white
         );
     }
-
 }

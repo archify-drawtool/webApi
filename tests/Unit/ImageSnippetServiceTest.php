@@ -6,7 +6,6 @@ beforeEach(function () {
     $this->service = new ImageSnippetService;
 });
 
-
 describe('mapCenterToRotatedCanvas', function () {
     test('returns unchanged center for 0 degree rotation', function () {
         $method = new ReflectionMethod(ImageSnippetService::class, 'mapCenterToRotatedCanvas');
@@ -93,7 +92,6 @@ describe('calculateSnippetBounds', function () {
             ->and($cropY + $h)->toBeLessThanOrEqual(100);
     });
 });
-
 
 describe('extractSnippet', function () {
     test('returns valid JPEG data for a real image', function () {
