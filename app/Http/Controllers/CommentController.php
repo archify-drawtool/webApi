@@ -1,0 +1,78 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Comment;
+use App\Models\Sketch;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+
+class CommentController extends Controller
+{
+    /**
+     * List every comment on a sketch.
+     */
+    public function index(Sketch $sketch): JsonResponse
+    {
+        $comments = $sketch->comments()
+            ->orderBy('created_at')
+            ->get();
+
+        return response()->json($comments);
+    }
+
+    /**
+     * Create a new comment on a sketch.
+     */
+    public function store(Request $request, Sketch $sketch): JsonResponse
+    {
+        $validated = $request->validate([
+            'x' => ['required', 'numeric'],
+            'y' => ['required', 'numeric'],
+            'body' => ['nullable', 'string', 'max:5000'],
+            'parent_id' => ['nullable', 'integer', 'exists:comments,id'],
+        ]);
+
+        if (! empty($validated['parent_id'])) {
+            $parent = Comment::find($validated['parent_id']);
+            abort_if($parent === null || $parent->sketch_id !== $sketch->id, 422);
+        }
+
+        $comment = $sketch->comments()->create([
+            'user_id' => $request->user()->id,
+            'parent_id' => $validated['parent_id'] ?? null,
+            'x' => $validated['x'],
+            'y' => $validated['y'],
+            'body' => $validated['body'] ?? '',
+        ]);
+
+        return response()->json($comment, 201);
+    }
+
+    /**
+     * Update a comment's body and/or position.
+     */
+    public function update(Request $request, Comment $comment): JsonResponse
+    {
+        $validated = $request->validate([
+            'x' => ['sometimes', 'numeric'],
+            'y' => ['sometimes', 'numeric'],
+            'body' => ['sometimes', 'string', 'max:5000'],
+        ]);
+
+        $comment->update($validated);
+
+        return response()->json($comment);
+    }
+
+    /**
+     * Delete a comment (and any thread replies via cascade).
+     */
+    public function destroy(Comment $comment): Response
+    {
+        $comment->delete();
+
+        return response()->noContent();
+    }
+}
