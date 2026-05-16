@@ -22,6 +22,7 @@ Route::get('/shared/{token}/photo', [SharedLinkController::class, 'showPhoto']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
+    Route::patch('/user', [AuthController::class, 'updatePreferences']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/node-types', [NodeTypeController::class, 'index']);
     Route::get('/projects', [ProjectController::class, 'index']);
