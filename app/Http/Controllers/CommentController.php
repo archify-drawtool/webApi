@@ -16,6 +16,7 @@ class CommentController extends Controller
     public function index(Sketch $sketch): JsonResponse
     {
         $comments = $sketch->comments()
+            ->with('author:id,name,email')
             ->orderBy('created_at')
             ->get();
 
@@ -47,6 +48,8 @@ class CommentController extends Controller
             'body' => $validated['body'] ?? '',
         ]);
 
+        $comment->load('author:id,name,email');
+
         return response()->json($comment, 201);
     }
 
@@ -62,6 +65,7 @@ class CommentController extends Controller
         ]);
 
         $comment->update($validated);
+        $comment->load('author:id,name,email');
 
         return response()->json($comment);
     }
