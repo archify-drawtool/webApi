@@ -8,6 +8,8 @@ use App\Services\MermaidExportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SketchController extends Controller
 {
@@ -36,7 +38,23 @@ class SketchController extends Controller
     {
         $sketch->load('creator:id,name,email');
 
-        return response()->json($sketch);
+        $payload = $sketch->toArray();
+        $payload['has_photo'] = $sketch->photo()->whereNotNull('path')->exists();
+
+        return response()->json($payload);
+    }
+
+    /**
+     * Stream the original photo that produced this sketch.
+     */
+    public function showPhoto(Sketch $sketch): StreamedResponse
+    {
+        $photo = $sketch->photo()->whereNotNull('path')->first();
+
+        abort_if($photo === null, 404);
+        abort_unless(Storage::disk('local')->exists($photo->path), 404);
+
+        return Storage::disk('local')->response($photo->path);
     }
 
     /**
