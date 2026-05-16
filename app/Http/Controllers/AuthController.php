@@ -54,4 +54,15 @@ class AuthController extends Controller
     {
         return response()->json($request->user());
     }
+
+    public function updatePreferences(Request $request)
+    {
+        $validated = $request->validate([
+            'show_background_dots' => 'required|boolean',
+        ]);
+
+        $request->user()->update($validated);
+
+        return response()->json($request->user()->fresh());
+    }
 }
