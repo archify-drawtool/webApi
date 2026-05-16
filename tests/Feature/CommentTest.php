@@ -4,7 +4,7 @@ use App\Models\Comment;
 use App\Models\Sketch;
 use App\Models\User;
 
-it('lists comments on a sketch', function () {
+it('lists comments on a sketch with author info', function () {
     $user = User::factory()->create();
     $sketch = Sketch::factory()->create(['created_by' => $user->id]);
     Comment::factory(3)->create(['sketch_id' => $sketch->id, 'user_id' => $user->id]);
@@ -14,7 +14,10 @@ it('lists comments on a sketch', function () {
         ->assertOk()
         ->assertJsonCount(3)
         ->assertJsonStructure([
-            '*' => ['id', 'sketch_id', 'user_id', 'parent_id', 'x', 'y', 'body', 'created_at', 'updated_at'],
+            '*' => [
+                'id', 'sketch_id', 'user_id', 'parent_id', 'x', 'y', 'body', 'created_at', 'updated_at',
+                'author' => ['id', 'name', 'email'],
+            ],
         ]);
 });
 
@@ -68,7 +71,43 @@ it('creates a reply comment with a valid parent_id', function () {
             'parent_id' => $parent->id,
         ])
         ->assertCreated()
+        ->assertJsonPath('parent_id', $parent->id)
+        ->assertJsonStructure(['author' => ['id', 'name', 'email']]);
+});
+
+it('lets a different user reply to an existing comment', function () {
+    $author = User::factory()->create();
+    $replier = User::factory()->create();
+    $sketch = Sketch::factory()->create(['created_by' => $author->id]);
+    $parent = Comment::factory()->create(['sketch_id' => $sketch->id, 'user_id' => $author->id]);
+
+    $this->actingAs($replier)
+        ->postJson("/api/sketches/{$sketch->id}/comments", [
+            'x' => 0,
+            'y' => 0,
+            'body' => 'mijn reply',
+            'parent_id' => $parent->id,
+        ])
+        ->assertCreated()
+        ->assertJsonPath('user_id', $replier->id)
         ->assertJsonPath('parent_id', $parent->id);
+});
+
+it('resolves a thread by deleting the top-level comment and cascading replies', function () {
+    $author = User::factory()->create();
+    $replier = User::factory()->create();
+    $sketch = Sketch::factory()->create(['created_by' => $author->id]);
+    $parent = Comment::factory()->create(['sketch_id' => $sketch->id, 'user_id' => $author->id]);
+    $reply1 = Comment::factory()->create(['sketch_id' => $sketch->id, 'user_id' => $replier->id, 'parent_id' => $parent->id]);
+    $reply2 = Comment::factory()->create(['sketch_id' => $sketch->id, 'user_id' => $author->id, 'parent_id' => $parent->id]);
+
+    $this->actingAs($replier)
+        ->deleteJson("/api/comments/{$parent->id}")
+        ->assertNoContent();
+
+    expect(Comment::find($parent->id))->toBeNull()
+        ->and(Comment::find($reply1->id))->toBeNull()
+        ->and(Comment::find($reply2->id))->toBeNull();
 });
 
 it('rejects a reply whose parent belongs to a different sketch', function () {
