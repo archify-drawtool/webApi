@@ -7,7 +7,9 @@ use App\Models\SharedLink;
 use App\Models\Sketch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SharedLinkController extends Controller
 {
@@ -79,6 +81,21 @@ class SharedLinkController extends Controller
             'title' => $sharedLink->sketch->title,
             'project_title' => $sharedLink->sketch->project->title,
             'canvas_state' => $sharedLink->sketch->canvas_state,
+            'has_photo' => $sharedLink->sketch->photo()->whereNotNull('path')->exists(),
         ]);
+    }
+
+    public function showPhoto(string $token): StreamedResponse
+    {
+        $sharedLink = SharedLink::where('token', $token)->first();
+
+        abort_if(! $sharedLink || ! $sharedLink->is_active, 404, 'Deze link is niet meer geldig.');
+
+        $photo = $sharedLink->sketch->photo()->whereNotNull('path')->first();
+
+        abort_if($photo === null, 404);
+        abort_unless(Storage::disk('local')->exists($photo->path), 404);
+
+        return Storage::disk('local')->response($photo->path);
     }
 }

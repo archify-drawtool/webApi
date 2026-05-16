@@ -18,6 +18,7 @@ Route::get('/metrics', PrometheusMetricsController::class);
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/shared/node-types', [SharedLinkController::class, 'nodesTypes']);
 Route::get('/shared/{token}', [SharedLinkController::class, 'show']);
+Route::get('/shared/{token}/photo', [SharedLinkController::class, 'showPhoto']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
@@ -32,6 +33,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/sketches', [SketchController::class, 'userIndex']);
     Route::post('/sketches', [SketchController::class, 'store']);
     Route::get('/sketches/{sketch}', [SketchController::class, 'show']);
+    Route::get('/sketches/{sketch}/photo', [SketchController::class, 'showPhoto']);
     Route::put('/sketches/{sketch}', [SketchController::class, 'updateCanvas']);
     Route::patch('/sketches/{sketch}/rename', [SketchController::class, 'renameSketch']);
     Route::delete('/sketches/{sketch}', [SketchController::class, 'destroySketch']);
