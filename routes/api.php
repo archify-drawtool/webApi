@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\NodeTypeController;
 use App\Http\Controllers\PhotoController;
 use App\Http\Controllers\ProjectController;
@@ -22,6 +23,7 @@ Route::get('/shared/{token}/photo', [SharedLinkController::class, 'showPhoto']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
+    Route::patch('/user', [AuthController::class, 'updatePreferences']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/node-types', [NodeTypeController::class, 'index']);
     Route::get('/projects', [ProjectController::class, 'index']);
@@ -42,4 +44,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/export/mermaid', [SketchController::class, 'exportMermaidFromState']);
     Route::get('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'status']);
     Route::post('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'toggle']);
+    Route::get('/sketches/{sketch}/comments', [CommentController::class, 'index']);
+    Route::post('/sketches/{sketch}/comments', [CommentController::class, 'store']);
+    Route::patch('/comments/{comment}', [CommentController::class, 'update']);
+    Route::delete('/comments/{comment}', [CommentController::class, 'destroy']);
 });
