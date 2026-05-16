@@ -64,4 +64,9 @@ class Sketch extends Model
     {
         return $this->hasMany(Comment::class);
     }
+
+    public function photo(): HasOne
+    {
+        return $this->hasOne(Photo::class);
+    }
 }
