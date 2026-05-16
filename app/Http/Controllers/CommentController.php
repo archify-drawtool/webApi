@@ -10,9 +10,6 @@ use Illuminate\Http\Response;
 
 class CommentController extends Controller
 {
-    /**
-     * List every comment on a sketch.
-     */
     public function index(Sketch $sketch): JsonResponse
     {
         $comments = $sketch->comments()
@@ -22,9 +19,6 @@ class CommentController extends Controller
         return response()->json($comments);
     }
 
-    /**
-     * Create a new comment on a sketch.
-     */
     public function store(Request $request, Sketch $sketch): JsonResponse
     {
         $validated = $request->validate([
@@ -50,9 +44,6 @@ class CommentController extends Controller
         return response()->json($comment, 201);
     }
 
-    /**
-     * Update a comment's body and/or position.
-     */
     public function update(Request $request, Comment $comment): JsonResponse
     {
         $validated = $request->validate([
@@ -66,9 +57,6 @@ class CommentController extends Controller
         return response()->json($comment);
     }
 
-    /**
-     * Delete a comment (and any thread replies via cascade).
-     */
     public function destroy(Comment $comment): Response
     {
         $comment->delete();
