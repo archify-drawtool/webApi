@@ -3,10 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Enums\PhotoStatus;
-use App\Models\ArucoMarker;
-use App\Models\ArucoMarkerCorner;
-use App\Models\DetectedEdge;
 use App\Models\Photo;
+use App\Services\DetectionDebugService;
 use App\Services\PhotoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +12,10 @@ use Illuminate\Validation\Rule;
 
 class PhotoController extends Controller
 {
-    public function __construct(private readonly PhotoService $photoService) {}
+    public function __construct(
+        private readonly PhotoService $photoService,
+        private readonly DetectionDebugService $debugService,
+    ) {}
 
     public function upload(Request $request): JsonResponse
     {
@@ -69,46 +70,6 @@ class PhotoController extends Controller
             );
         }
 
-        $markerConfig = config('marker_config');
-
-        $markers = $result->markers->map(function (ArucoMarker $marker) use ($markerConfig) {
-            $cfg = $markerConfig[$marker->marker_id] ?? [
-                'type' => 'node',
-                'hitbox' => ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0],
-            ];
-
-            return [
-                'id' => $marker->id,
-                'marker_id' => $marker->marker_id,
-                'center_x' => $marker->center_x,
-                'center_y' => $marker->center_y,
-                'rotation' => $marker->rotation,
-                'ocr_text' => $marker->ocr_text,
-                'corners' => $marker->corners->map(fn (ArucoMarkerCorner $c) => [
-                    'position' => $c->position,
-                    'x' => $c->x,
-                    'y' => $c->y,
-                ])->values(),
-                'type' => $cfg['type'],
-                'hitbox' => $cfg['hitbox'],
-            ];
-        })->values();
-
-        $edges = $result->edges->map(fn (DetectedEdge $edge) => [
-            'id' => $edge->id,
-            'edge_type' => $edge->edge_type,
-            'edge_marker_id' => $edge->edge_marker_id,
-            'source_marker_id' => $edge->source_marker_id,
-            'target_marker_id' => $edge->target_marker_id,
-        ])->values();
-
-        return response()->json([
-            'markers' => $markers,
-            'edges' => $edges,
-            'config' => [
-                'edge_margin' => (float) config('aruco.edge_margin'),
-                'edge_angle_margin' => (float) config('aruco.edge_angle_margin'),
-            ],
-        ]);
+        return response()->json($this->debugService->buildPayload($result));
     }
 }

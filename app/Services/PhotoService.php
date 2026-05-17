@@ -127,7 +127,7 @@ readonly class PhotoService
     {
         return DetectionResult::with([
             'markers.corners',
-            'edges.edgeMarker',
+            'edges.edgeMarker.corners',
             'edges.sourceMarker',
             'edges.targetMarker',
         ])->where('filename', $filename)->first();
