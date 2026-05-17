@@ -15,46 +15,46 @@ class DetectionDebugService
     {
         $markerConfig = config('marker_config');
         $marginFactor = (float) config('aruco.edge_margin');
-        $angleDeg     = (float) config('aruco.edge_angle_margin');
+        $angleDeg = (float) config('aruco.edge_angle_margin');
 
         $markers = $result->markers->map(function (ArucoMarker $marker) use ($markerConfig) {
             $cfg = $markerConfig[$marker->marker_id] ?? [
-                'type'   => 'node',
+                'type' => 'node',
                 'hitbox' => ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0],
             ];
 
             return [
-                'id'             => $marker->id,
-                'marker_id'      => $marker->marker_id,
-                'center_x'       => $marker->center_x,
-                'center_y'       => $marker->center_y,
-                'rotation'       => $marker->rotation,
-                'ocr_text'       => $marker->ocr_text,
-                'corners'        => $marker->corners->map(fn (ArucoMarkerCorner $c) => [
+                'id' => $marker->id,
+                'marker_id' => $marker->marker_id,
+                'center_x' => $marker->center_x,
+                'center_y' => $marker->center_y,
+                'rotation' => $marker->rotation,
+                'ocr_text' => $marker->ocr_text,
+                'corners' => $marker->corners->map(fn (ArucoMarkerCorner $c) => [
                     'position' => $c->position,
-                    'x'        => $c->x,
-                    'y'        => $c->y,
+                    'x' => $c->x,
+                    'y' => $c->y,
                 ])->values(),
-                'type'           => $cfg['type'],
-                'hitbox'         => $cfg['hitbox'],
+                'type' => $cfg['type'],
+                'hitbox' => $cfg['hitbox'],
                 'hitbox_corners' => $this->hitboxCorners($marker, $cfg['hitbox']),
             ];
         })->values();
 
         $edges = $result->edges->map(fn (DetectedEdge $edge) => [
-            'id'               => $edge->id,
-            'edge_type'        => $edge->edge_type,
-            'edge_marker_id'   => $edge->edge_marker_id,
+            'id' => $edge->id,
+            'edge_type' => $edge->edge_type,
+            'edge_marker_id' => $edge->edge_marker_id,
             'source_marker_id' => $edge->source_marker_id,
             'target_marker_id' => $edge->target_marker_id,
-            'detection_lines'  => $this->detectionLines($edge, $marginFactor, $angleDeg),
+            'detection_lines' => $this->detectionLines($edge, $marginFactor, $angleDeg),
         ])->values();
 
         return [
             'markers' => $markers,
-            'edges'   => $edges,
-            'config'  => [
-                'edge_margin'       => $marginFactor,
+            'edges' => $edges,
+            'config' => [
+                'edge_margin' => $marginFactor,
                 'edge_angle_margin' => $angleDeg,
             ],
         ];
@@ -70,15 +70,15 @@ class DetectionDebugService
 
     private function hitboxCorners(ArucoMarker $marker, array $hitbox): array
     {
-        $w    = $this->markerWidthPx($marker->corners);
+        $w = $this->markerWidthPx($marker->corners);
         $rRad = deg2rad($marker->rotation);
         $cosR = cos($rRad);
         $sinR = sin($rRad);
 
         $local = [
             [-(0.5 + $hitbox['xNeg']) * $w, -(0.5 + $hitbox['yNeg']) * $w],
-            [ (0.5 + $hitbox['xPos']) * $w, -(0.5 + $hitbox['yNeg']) * $w],
-            [ (0.5 + $hitbox['xPos']) * $w,  (0.5 + $hitbox['yPos']) * $w],
+            [(0.5 + $hitbox['xPos']) * $w, -(0.5 + $hitbox['yNeg']) * $w],
+            [(0.5 + $hitbox['xPos']) * $w,  (0.5 + $hitbox['yPos']) * $w],
             [-(0.5 + $hitbox['xNeg']) * $w,  (0.5 + $hitbox['yPos']) * $w],
         ];
 
@@ -90,45 +90,46 @@ class DetectionDebugService
 
     private function detectionLines(DetectedEdge $edge, float $marginFactor, float $angleDeg): array
     {
-        $src   = $edge->sourceMarker;
-        $tgt   = $edge->targetMarker;
-        $inset = $marginFactor * $this->markerWidthPx($edge->edgeMarker->corners);
+        $em = $edge->edgeMarker;
+        $src = $edge->sourceMarker;
+        $tgt = $edge->targetMarker;
 
-        $dx     = $tgt->center_x - $src->center_x;
-        $dy     = $tgt->center_y - $src->center_y;
-        $length = sqrt($dx * $dx + $dy * $dy);
+        $rRad = deg2rad($em->rotation);
+        $mainX = cos($rRad);
+        $mainY = sin($rRad);
+        $perpX = -sin($rRad);
+        $perpY = cos($rRad);
 
-        if ($length < 1e-6) {
-            $seg = ['x1' => $src->center_x, 'y1' => $src->center_y, 'x2' => $src->center_x, 'y2' => $src->center_y];
+        $baseMargin = $marginFactor * $this->markerWidthPx($em->corners);
+        $angleTan = tan(deg2rad($angleDeg));
 
-            return ['center' => $seg, 'upper' => $seg, 'lower' => $seg];
-        }
+        // Signed axial distances from edge marker center to each node (source is negative, target positive)
+        $dSrc = ($src->center_x - $em->center_x) * $mainX + ($src->center_y - $em->center_y) * $mainY;
+        $dTgt = ($tgt->center_x - $em->center_x) * $mainX + ($tgt->center_y - $em->center_y) * $mainY;
 
-        $ux = $dx / $length;
-        $uy = $dy / $length;
-        $s  = ['x' => $src->center_x + $inset * $ux, 'y' => $src->center_y + $inset * $uy];
-        $t  = ['x' => $tgt->center_x - $inset * $ux, 'y' => $tgt->center_y - $inset * $uy];
+        // Corridor half-width at each axial position (matches EdgeDetectionService tolerance formula)
+        $marginSrc = $baseMargin + $angleTan * abs($dSrc);
+        $marginTgt = $baseMargin + $angleTan * abs($dTgt);
 
-        $theta  = deg2rad($angleDeg);
-        $tUpper = $this->rotateAround($t, $s, -$theta);
-        $tLower = $this->rotateAround($t, $s, $theta);
+        $pt = fn (float $x, float $y): array => ['x' => round($x, 2), 'y' => round($y, 2)];
 
-        $seg = fn ($end) => [
-            'x1' => round($s['x'], 2), 'y1' => round($s['y'], 2),
-            'x2' => $end['x'],         'y2' => $end['y'],
-        ];
-
-        return ['center' => $seg($t), 'upper' => $seg($tUpper), 'lower' => $seg($tLower)];
-    }
-
-    private function rotateAround(array $point, array $center, float $radians): array
-    {
-        $rx = $point['x'] - $center['x'];
-        $ry = $point['y'] - $center['y'];
+        $mainStart = $pt($em->center_x + $dSrc * $mainX, $em->center_y + $dSrc * $mainY);
+        $mainEnd = $pt($em->center_x + $dTgt * $mainX, $em->center_y + $dTgt * $mainY);
 
         return [
-            'x' => round($center['x'] + $rx * cos($radians) - $ry * sin($radians), 2),
-            'y' => round($center['y'] + $rx * sin($radians) + $ry * cos($radians), 2),
+            'main_start' => $mainStart,
+            'main_end' => $mainEnd,
+            'center' => $pt($em->center_x, $em->center_y),
+            'upper' => [
+                'origin' => $pt($em->center_x + $baseMargin * $perpX, $em->center_y + $baseMargin * $perpY),
+                'far_start' => $pt($mainStart['x'] + $marginSrc * $perpX, $mainStart['y'] + $marginSrc * $perpY),
+                'far_end' => $pt($mainEnd['x'] + $marginTgt * $perpX, $mainEnd['y'] + $marginTgt * $perpY),
+            ],
+            'lower' => [
+                'origin' => $pt($em->center_x - $baseMargin * $perpX, $em->center_y - $baseMargin * $perpY),
+                'far_start' => $pt($mainStart['x'] - $marginSrc * $perpX, $mainStart['y'] - $marginSrc * $perpY),
+                'far_end' => $pt($mainEnd['x'] - $marginTgt * $perpX, $mainEnd['y'] - $marginTgt * $perpY),
+            ],
         ];
     }
 }
