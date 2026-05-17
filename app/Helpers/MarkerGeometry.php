@@ -59,6 +59,24 @@ final class MarkerGeometry
     }
 
     /**
+     * Compute the world-coordinate hitbox center directly from an ArucoMarker model.
+     * Convenience wrapper around markerDimensions() + hitboxCenter() + resolveHitbox().
+     *
+     * @return array{x: float, y: float}
+     */
+    public static function markerHitboxCenter(object $marker): array
+    {
+        $dims = self::markerDimensions($marker->corners);
+
+        return self::hitboxCenter(
+            (float) $marker->center_x, (float) $marker->center_y,
+            $dims['width'], $dims['height'],
+            self::resolveHitbox((int) $marker->marker_id),
+            (float) $marker->rotation
+        );
+    }
+
+    /**
      * Look up and validate the OCR hitbox for the given marker ID.
      *
      * @throws InvalidArgumentException When the hitbox boundaries cross each other.

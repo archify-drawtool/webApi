@@ -86,15 +86,11 @@ class EdgeDetectionService
      */
     private function partitionMarkers(Collection $markers, array $config): array
     {
-        $edgeMarkers = $markers->filter(
-            fn ($m) => MarkerType::fromConfig($m->marker_id, $config) !== MarkerType::Node
+        $grouped = $markers->groupBy(
+            fn ($m) => MarkerType::fromConfig($m->marker_id, $config) === MarkerType::Node ? 'node' : 'edge'
         );
 
-        $nodeMarkers = $markers->filter(
-            fn ($m) => MarkerType::fromConfig($m->marker_id, $config) === MarkerType::Node
-        );
-
-        return [$edgeMarkers, $nodeMarkers];
+        return [$grouped->get('edge', collect()), $grouped->get('node', collect())];
     }
 
     /**
@@ -123,13 +119,7 @@ class EdgeDetectionService
         $bestPosDot = PHP_FLOAT_MAX;
 
         foreach ($nodeMarkers as $node) {
-            $nodeDims = MarkerGeometry::markerDimensions($node->corners);
-            $nodeCenter = MarkerGeometry::hitboxCenter(
-                (float) $node->center_x, (float) $node->center_y,
-                $nodeDims['width'], $nodeDims['height'],
-                MarkerGeometry::resolveHitbox((int) $node->marker_id),
-                (float) $node->rotation
-            );
+            $nodeCenter = MarkerGeometry::markerHitboxCenter($node);
             $dx = $nodeCenter['x'] - $centerX;
             $dy = $nodeCenter['y'] - $centerY;
 
