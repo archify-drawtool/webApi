@@ -133,6 +133,17 @@ readonly class PhotoService
         ])->where('filename', $filename)->first();
     }
 
+    public function getDetectionResultBySketchId(int $sketchId): ?DetectionResult
+    {
+        $photo = Photo::where('sketch_id', $sketchId)->first();
+
+        if ($photo === null) {
+            return null;
+        }
+
+        return $this->getDetectionResult($photo->filename);
+    }
+
     /**
      * Extract image snippets for all markers. Entries that fail are stored as null.
      *

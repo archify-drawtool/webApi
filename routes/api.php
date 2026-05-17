@@ -31,7 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/projects/{project}', [ProjectController::class, 'show']);
     Route::post('/photos/upload', [PhotoController::class, 'upload']);
     Route::get('/photos/{photo}/status', [PhotoController::class, 'status']);
-    Route::get('/photos/{filename}/aruco', [PhotoController::class, 'getArucoResults']);
+    Route::get('/photos/{sketch_id}/aruco', [PhotoController::class, 'getArucoResults']);
     Route::get('/sketches', [SketchController::class, 'userIndex']);
     Route::post('/sketches', [SketchController::class, 'store']);
     Route::get('/sketches/{sketch}', [SketchController::class, 'show']);
