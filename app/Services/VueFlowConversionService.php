@@ -101,10 +101,10 @@ class VueFlowConversionService
             [$rangeX, $rangeY] = [$rangeY, $rangeX];
         }
 
-        $canvasMinX = 100.0;
-        $canvasMaxX = 1300.0;
-        $canvasMinY = 100.0;
-        $canvasMaxY = 700.0;
+        $canvasMinX = (float) config('canvas.min_x', 100.0);
+        $canvasMaxX = (float) config('canvas.max_x', 1300.0);
+        $canvasMinY = (float) config('canvas.min_y', 100.0);
+        $canvasMaxY = (float) config('canvas.max_y', 700.0);
 
         $canvasWidth = $canvasMaxX - $canvasMinX;
         $canvasHeight = $canvasMaxY - $canvasMinY;
