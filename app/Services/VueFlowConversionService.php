@@ -44,8 +44,13 @@ class VueFlowConversionService
 
         $nodes = $this->normalizePositions($nodes);
 
+        $nodePositions = collect($nodes)
+            ->keyBy(fn ($n) => (int) str_replace('node-', '', $n['id']))
+            ->map(fn ($n) => $n['position'])
+            ->all();
+
         $edges = $detectionResult->edges
-            ->map(fn ($edge) => $this->buildEdge($edge))
+            ->map(fn ($edge) => $this->buildEdge($edge, $nodePositions))
             ->all();
 
         return Sketch::create([
@@ -127,16 +132,41 @@ class VueFlowConversionService
         }, $nodes);
     }
 
-    private function buildEdge(DetectedEdge $edge): array
+    private function buildEdge(DetectedEdge $edge, array $nodePositions): array
     {
         $edgeType = $edge->edge_type instanceof MarkerType
             ? $edge->edge_type->value
             : $edge->edge_type;
 
+        $srcPos = $nodePositions[$edge->source_marker_id] ?? null;
+        $tgtPos = $nodePositions[$edge->target_marker_id] ?? null;
+
+        $sourceHandle = null;
+        $targetHandle = null;
+
+        if ($srcPos && $tgtPos) {
+            $dx = $tgtPos['x'] - $srcPos['x'];
+            $dy = $tgtPos['y'] - $srcPos['y'];
+
+            $srcSide = $this->dominantSide($dx, $dy);
+            $tgtSide = $this->dominantSide(-$dx, -$dy);
+
+            [$srcRole, $tgtRole] = match ($edgeType) {
+                MarkerType::Directionless->value => ['source', 'source'],
+                MarkerType::Bidirectional->value => ['target', 'target'],
+                default => ['source', 'target'],
+            };
+
+            $sourceHandle = "{$srcSide}-{$srcRole}";
+            $targetHandle = "{$tgtSide}-{$tgtRole}";
+        }
+
         $vfEdge = [
             'id' => 'edge-'.$edge->id,
             'source' => 'node-'.$edge->source_marker_id,
             'target' => 'node-'.$edge->target_marker_id,
+            'sourceHandle' => $sourceHandle,
+            'targetHandle' => $targetHandle,
             'label' => $edge->edgeMarker->ocr_text ?? '',
             'data' => ['edgeType' => $edgeType],
         ];
@@ -149,5 +179,14 @@ class VueFlowConversionService
         }
 
         return $vfEdge;
+    }
+
+    private function dominantSide(float $dx, float $dy): string
+    {
+        if (abs($dx) >= abs($dy)) {
+            return $dx >= 0 ? 'right' : 'left';
+        }
+
+        return $dy >= 0 ? 'bottom' : 'top';
     }
 }
