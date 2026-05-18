@@ -32,6 +32,12 @@ class EdgeDetectionService
      * The node with the smallest |dot| on each side is selected.
      * source = negative-x node, target = positive-x node.
      *
+     * When no source or target is found on the first attempt, the search is retried up
+     * to `aruco.edge_retry_max_attempts` times, each time widening the angle margin by
+     * `aruco.edge_retry_angle_step` degrees and the base margin factor by
+     * `aruco.edge_retry_margin_step`. This recovers edges from slightly skewed markers
+     * without loosening the default tolerances for well-placed ones.
+     *
      * @param  Collection  $persistedMarkers  ArucoMarker Eloquent models with id, marker_id,
      *                                        center_x, center_y, rotation, and eager-loaded corners.
      * @return array[] Array of edge data arrays, each with keys:
@@ -41,7 +47,9 @@ class EdgeDetectionService
     {
         $edgeMarginFactor = config('aruco.edge_margin', 0.5);
         $angleMarginDeg = config('aruco.edge_angle_margin', 5.0);
-        $angleTan = tan(deg2rad($angleMarginDeg));
+        $retryMaxAttempts = (int) config('aruco.edge_retry_max_attempts', 3);
+        $retryAngleStep = (float) config('aruco.edge_retry_angle_step', 5.0);
+        $retryMarginStep = (float) config('aruco.edge_retry_margin_step', 0.25);
         $markerConfig = config('marker_config', []);
 
         [$edgeMarkers, $nodeMarkers] = $this->partitionMarkers($persistedMarkers, $markerConfig);
@@ -58,10 +66,19 @@ class EdgeDetectionService
             $sinR = sin($rotationRad);
 
             $markerSize = $this->computeMarkerSize($edgeMarker->corners);
-            $baseMarginPx = $edgeMarginFactor * $markerSize;
 
-            [$bestNeg, $bestPos] = $this->findCandidateNodes(
-                $nodeMarkers, $centerX, $centerY, $cosR, $sinR, $baseMarginPx, $angleTan
+            [$bestNeg, $bestPos] = $this->findCandidateNodesWithRetry(
+                $nodeMarkers,
+                $centerX,
+                $centerY,
+                $cosR,
+                $sinR,
+                $markerSize,
+                $edgeMarginFactor,
+                $angleMarginDeg,
+                $retryMaxAttempts,
+                $retryAngleStep,
+                $retryMarginStep,
             );
 
             if ($bestNeg === null || $bestPos === null) {
@@ -77,6 +94,52 @@ class EdgeDetectionService
         }
 
         return $edges;
+    }
+
+    /**
+     * Try to find candidate nodes, retrying with progressively wider tolerances when
+     * either side (source or target) comes up empty.
+     *
+     * On attempt 0 the base config values are used unchanged. Each subsequent attempt
+     * adds `$retryAngleStep` degrees to the angle margin and `$retryMarginStep` to the
+     * base margin factor. The search stops as soon as both sides are populated or the
+     * maximum number of attempts is exhausted.
+     *
+     * @return array{0: mixed|null, 1: mixed|null}
+     */
+    private function findCandidateNodesWithRetry(
+        Collection $nodeMarkers,
+        float $centerX,
+        float $centerY,
+        float $cosR,
+        float $sinR,
+        float $markerSize,
+        float $baseMarginFactor,
+        float $baseAngleMarginDeg,
+        int $retryMaxAttempts,
+        float $retryAngleStep,
+        float $retryMarginStep,
+    ): array {
+        $bestNeg = null;
+        $bestPos = null;
+
+        for ($attempt = 0; $attempt <= $retryMaxAttempts; $attempt++) {
+            $marginFactor = $baseMarginFactor + $attempt * $retryMarginStep;
+            $angleMarginDeg = $baseAngleMarginDeg + $attempt * $retryAngleStep;
+
+            $baseMarginPx = $marginFactor * $markerSize;
+            $angleTan = tan(deg2rad($angleMarginDeg));
+
+            [$bestNeg, $bestPos] = $this->findCandidateNodes(
+                $nodeMarkers, $centerX, $centerY, $cosR, $sinR, $baseMarginPx, $angleTan
+            );
+
+            if ($bestNeg !== null && $bestPos !== null) {
+                return [$bestNeg, $bestPos];
+            }
+        }
+
+        return [$bestNeg, $bestPos];
     }
 
     /**
