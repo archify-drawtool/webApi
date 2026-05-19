@@ -6,42 +6,6 @@ beforeEach(function () {
     $this->service = new ImageSnippetService;
 });
 
-describe('resolveHitbox', function () {
-    test('all configured hitboxes in marker_config.php have non-crossing boundaries', function () {
-        $markerConfig = require base_path('config/marker_config.php');
-        config(['marker_config' => $markerConfig]);
-
-        $method = new ReflectionMethod(ImageSnippetService::class, 'resolveHitbox');
-
-        foreach (array_keys($markerConfig) as $markerId) {
-            expect(fn () => $method->invoke($this->service, $markerId))
-                ->not->toThrow(InvalidArgumentException::class);
-        }
-    });
-
-    test('throws when x boundaries cross', function () {
-        config(['marker_config' => [
-            1 => ['type' => 'node', 'hitbox' => ['xPos' => -0.8, 'xNeg' => -0.5, 'yPos' => 1.0, 'yNeg' => 1.0]],
-        ]]);
-
-        $method = new ReflectionMethod(ImageSnippetService::class, 'resolveHitbox');
-
-        expect(fn () => $method->invoke($this->service, 1))
-            ->toThrow(InvalidArgumentException::class, 'xNeg');
-    });
-
-    test('throws when y boundaries cross', function () {
-        config(['marker_config' => [
-            2 => ['type' => 'node', 'hitbox' => ['xPos' => 1.0, 'xNeg' => 1.0, 'yPos' => -0.8, 'yNeg' => -0.5]],
-        ]]);
-
-        $method = new ReflectionMethod(ImageSnippetService::class, 'resolveHitbox');
-
-        expect(fn () => $method->invoke($this->service, 2))
-            ->toThrow(InvalidArgumentException::class, 'yNeg');
-    });
-});
-
 describe('mapCenterToRotatedCanvas', function () {
     test('returns unchanged center for 0 degree rotation', function () {
         $method = new ReflectionMethod(ImageSnippetService::class, 'mapCenterToRotatedCanvas');
@@ -126,21 +90,6 @@ describe('calculateSnippetBounds', function () {
 
         expect($cropX + $w)->toBeLessThanOrEqual(100)
             ->and($cropY + $h)->toBeLessThanOrEqual(100);
-    });
-});
-
-describe('euclideanDistance', function () {
-    test('returns 0 for identical points', function () {
-        $method = new ReflectionMethod(ImageSnippetService::class, 'euclideanDistance');
-
-        expect($method->invoke($this->service, ['x' => 3.0, 'y' => 4.0], ['x' => 3.0, 'y' => 4.0]))->toBe(0.0);
-    });
-
-    test('returns correct distance for known points', function () {
-        $method = new ReflectionMethod(ImageSnippetService::class, 'euclideanDistance');
-
-        // 3-4-5 right triangle.
-        expect($method->invoke($this->service, ['x' => 0.0, 'y' => 0.0], ['x' => 3.0, 'y' => 4.0]))->toBe(5.0);
     });
 });
 

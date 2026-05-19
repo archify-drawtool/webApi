@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\MarkerType;
+use App\Helpers\MarkerGeometry;
 use App\Models\DetectedEdge;
 use App\Models\DetectionResult;
 use App\Models\Sketch;
@@ -13,7 +14,7 @@ class VueFlowConversionService
     public function convert(DetectionResult $detectionResult, int $projectId): Sketch
     {
         $detectionResult->loadMissing([
-            'markers',
+            'markers.corners',
             'edges.edgeMarker',
             'edges.sourceMarker',
             'edges.targetMarker',
@@ -26,11 +27,12 @@ class VueFlowConversionService
             ->filter(fn ($marker) => MarkerType::fromConfig($marker->marker_id, $markerConfig) === MarkerType::Node)
             ->map(function ($marker) use ($nodeTypes) {
                 $nodeType = $nodeTypes->firstWhere('aruco', $marker->marker_id);
+                $position = MarkerGeometry::markerHitboxCenter($marker);
 
                 return [
                     'id' => 'node-'.$marker->id,
                     'type' => $nodeType['type'] ?? 'rectangle',
-                    'position' => ['x' => $marker->center_x, 'y' => $marker->center_y],
+                    'position' => $position,
                     'data' => [
                         'label' => $marker->ocr_text ?? '',
                         'icon' => $nodeType['icon'] ?? 'square',
@@ -104,10 +106,10 @@ class VueFlowConversionService
             [$rangeX, $rangeY] = [$rangeY, $rangeX];
         }
 
-        $canvasMinX = 100.0;
-        $canvasMaxX = 1300.0;
-        $canvasMinY = 100.0;
-        $canvasMaxY = 700.0;
+        $canvasMinX = (float) config('canvas.min_x', 100.0);
+        $canvasMaxX = (float) config('canvas.max_x', 1300.0);
+        $canvasMinY = (float) config('canvas.min_y', 100.0);
+        $canvasMaxY = (float) config('canvas.max_y', 700.0);
 
         $canvasWidth = $canvasMaxX - $canvasMinX;
         $canvasHeight = $canvasMaxY - $canvasMinY;
