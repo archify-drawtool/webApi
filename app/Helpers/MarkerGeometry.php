@@ -77,6 +77,35 @@ final class MarkerGeometry
     }
 
     /**
+     * World-coordinate corners of the hitbox rectangle around a marker.
+     *
+     * @param  array{xPos: float, xNeg: float, yPos: float, yNeg: float}  $hitbox
+     * @return array<array{x: float, y: float}>  Four corners in local TL→TR→BR→BL order.
+     */
+    public static function hitboxCorners(
+        float $cx, float $cy,
+        float $markerW,
+        array $hitbox,
+        float $rotationDeg
+    ): array {
+        $rRad = deg2rad($rotationDeg);
+        $cosR = cos($rRad);
+        $sinR = sin($rRad);
+
+        $local = [
+            [-(0.5 + $hitbox['xNeg']) * $markerW, -(0.5 + $hitbox['yNeg']) * $markerW],
+            [ (0.5 + $hitbox['xPos']) * $markerW, -(0.5 + $hitbox['yNeg']) * $markerW],
+            [ (0.5 + $hitbox['xPos']) * $markerW,  (0.5 + $hitbox['yPos']) * $markerW],
+            [-(0.5 + $hitbox['xNeg']) * $markerW,  (0.5 + $hitbox['yPos']) * $markerW],
+        ];
+
+        return array_map(fn ($lc) => [
+            'x' => round($cx + $lc[0] * $cosR - $lc[1] * $sinR, 2),
+            'y' => round($cy + $lc[0] * $sinR + $lc[1] * $cosR, 2),
+        ], $local);
+    }
+
+    /**
      * Look up and validate the OCR hitbox for the given marker ID.
      *
      * @throws InvalidArgumentException When the hitbox boundaries cross each other.

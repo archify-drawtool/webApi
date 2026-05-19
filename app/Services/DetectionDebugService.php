@@ -2,12 +2,11 @@
 
 namespace App\Services;
 
-use App\Enums\CornerPosition;
+use App\Helpers\MarkerGeometry;
 use App\Models\ArucoMarker;
 use App\Models\ArucoMarkerCorner;
 use App\Models\DetectedEdge;
 use App\Models\DetectionResult;
-use Illuminate\Support\Collection;
 
 class DetectionDebugService
 {
@@ -60,32 +59,14 @@ class DetectionDebugService
         ];
     }
 
-    private function markerWidthPx(Collection $corners): float
-    {
-        $tl = $corners->firstWhere('position', CornerPosition::TopLeft);
-        $tr = $corners->firstWhere('position', CornerPosition::TopRight);
-
-        return sqrt(($tr->x - $tl->x) ** 2 + ($tr->y - $tl->y) ** 2);
-    }
-
     private function hitboxCorners(ArucoMarker $marker, array $hitbox): array
     {
-        $w = $this->markerWidthPx($marker->corners);
-        $rRad = deg2rad($marker->rotation);
-        $cosR = cos($rRad);
-        $sinR = sin($rRad);
+        $w = MarkerGeometry::markerDimensions($marker->corners)['width'];
 
-        $local = [
-            [-(0.5 + $hitbox['xNeg']) * $w, -(0.5 + $hitbox['yNeg']) * $w],
-            [(0.5 + $hitbox['xPos']) * $w, -(0.5 + $hitbox['yNeg']) * $w],
-            [(0.5 + $hitbox['xPos']) * $w,  (0.5 + $hitbox['yPos']) * $w],
-            [-(0.5 + $hitbox['xNeg']) * $w,  (0.5 + $hitbox['yPos']) * $w],
-        ];
-
-        return array_map(fn ($lc) => [
-            'x' => round($marker->center_x + $lc[0] * $cosR - $lc[1] * $sinR, 2),
-            'y' => round($marker->center_y + $lc[0] * $sinR + $lc[1] * $cosR, 2),
-        ], $local);
+        return MarkerGeometry::hitboxCorners(
+            $marker->center_x, $marker->center_y,
+            $w, $hitbox, $marker->rotation
+        );
     }
 
     private function detectionLines(DetectedEdge $edge, float $marginFactor, float $angleDeg): array
@@ -100,7 +81,7 @@ class DetectionDebugService
         $perpX = -sin($rRad);
         $perpY = cos($rRad);
 
-        $baseMargin = $marginFactor * $this->markerWidthPx($em->corners);
+        $baseMargin = $marginFactor * MarkerGeometry::markerDimensions($em->corners)['width'];
         $angleTan = tan(deg2rad($angleDeg));
 
         // Signed axial distances from edge marker center to each node (source is negative, target positive)
