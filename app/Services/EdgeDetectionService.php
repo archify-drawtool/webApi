@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Enums\CornerPosition;
 use App\Enums\MarkerType;
+use App\Helpers\MarkerGeometry;
 use Illuminate\Database\Eloquent\Collection;
 
 class EdgeDetectionService
@@ -65,7 +65,7 @@ class EdgeDetectionService
             $cosR = cos($rotationRad);
             $sinR = sin($rotationRad);
 
-            $markerSize = $this->computeMarkerSize($edgeMarker->corners);
+            $markerSize = MarkerGeometry::markerDimensions($edgeMarker->corners)['width'];
 
             [$bestNeg, $bestPos] = $this->findCandidateNodesWithRetry(
                 $nodeMarkers,
@@ -149,33 +149,11 @@ class EdgeDetectionService
      */
     private function partitionMarkers(Collection $markers, array $config): array
     {
-        $edgeMarkers = $markers->filter(
-            fn ($m) => MarkerType::fromConfig($m->marker_id, $config) !== MarkerType::Node
+        $grouped = $markers->groupBy(
+            fn ($m) => MarkerType::fromConfig($m->marker_id, $config) === MarkerType::Node ? 'node' : 'edge'
         );
 
-        $nodeMarkers = $markers->filter(
-            fn ($m) => MarkerType::fromConfig($m->marker_id, $config) === MarkerType::Node
-        );
-
-        return [$edgeMarkers, $nodeMarkers];
-    }
-
-    /**
-     * Compute marker width in pixels from the TL → TR corner distance.
-     *
-     * @param  iterable  $corners  Collection of ArucoMarkerCorner models (or plain objects with position, x, y).
-     */
-    private function computeMarkerSize(iterable $corners): float
-    {
-        $corners = collect($corners);
-        $tl = $corners->firstWhere('position', CornerPosition::TopLeft);
-        $tr = $corners->firstWhere('position', CornerPosition::TopRight);
-
-        if ($tl === null || $tr === null) {
-            return 0.0;
-        }
-
-        return sqrt(($tr->x - $tl->x) ** 2 + ($tr->y - $tl->y) ** 2);
+        return [$grouped->get('edge', collect()), $grouped->get('node', collect())];
     }
 
     /**
@@ -204,8 +182,9 @@ class EdgeDetectionService
         $bestPosDot = PHP_FLOAT_MAX;
 
         foreach ($nodeMarkers as $node) {
-            $dx = (float) $node->center_x - $centerX;
-            $dy = (float) $node->center_y - $centerY;
+            $nodeCenter = MarkerGeometry::markerHitboxCenter($node);
+            $dx = $nodeCenter['x'] - $centerX;
+            $dy = $nodeCenter['y'] - $centerY;
 
             $dotProduct = $dx * $cosR + $dy * $sinR;
             $perp = abs($dx * -$sinR + $dy * $cosR); // Projection of node center onto edge y-axis.
