@@ -149,9 +149,13 @@ test('detectEdges finds an edge on retry when the marker is slightly skewed', fu
 });
 
 test('detectEdges still returns no edge when skew exceeds all retry attempts', function () {
-    // Edge marker rotated 90°, nodes are horizontal — perpendicular distance is too large
-    // for any reasonable retry. With 3 retries at +5° per step the cone only reaches 15°,
-    // which is nowhere near enough to bridge a 90° skew.
+    // Edge marker rotated 90° — its x-axis points straight down.
+    // Nodes are 100px to the left and right, so their perpendicular distance = 100px.
+    // Maximum allowed_perp after 3 retries: margin_factor=1.25 → base=62.5px, plus
+    // a negligible angle term (dot ≈ 0). 100 > 62.5 → both nodes rejected on every attempt.
+    //
+    // Nodes are placed at ±100px (not ±50px) to avoid the floating-point edge case where
+    // perp == base_margin exactly at attempt 2 (1.0 × 50 = 50).
     config([
         'aruco.edge_margin' => 0.5,
         'aruco.edge_angle_margin' => 0.0,
@@ -160,8 +164,8 @@ test('detectEdges still returns no edge when skew exceeds all retry attempts', f
         'aruco.edge_retry_margin_step' => 0.25,
     ]);
 
-    $nodeA = makeMarker(1, 1, 50.0, 100.0, 0.0);
-    $nodeB = makeMarker(2, 2, 150.0, 100.0, 0.0);
+    $nodeA = makeMarker(1, 1, 0.0, 100.0, 0.0);
+    $nodeB = makeMarker(2, 2, 200.0, 100.0, 0.0);
     $edgeMarker = makeMarker(3, 10, 100.0, 100.0, 90.0); // pointing straight down
 
     $edges = $this->service->detectEdges(Collection::make([$nodeA, $nodeB, $edgeMarker]));
