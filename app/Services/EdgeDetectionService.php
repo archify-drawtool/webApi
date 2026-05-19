@@ -67,7 +67,7 @@ class EdgeDetectionService
 
             $markerSize = MarkerGeometry::markerDimensions($edgeMarker->corners)['width'];
 
-            [$bestNeg, $bestPos] = $this->findCandidateNodesWithRetry(
+            [$bestNeg, $bestPos, $retryAttempts] = $this->findCandidateNodesWithRetry(
                 $nodeMarkers,
                 $centerX,
                 $centerY,
@@ -90,6 +90,7 @@ class EdgeDetectionService
                 'source_marker' => $bestNeg,
                 'target_marker' => $bestPos,
                 'edge_type' => $edgeType,
+                'retry_attempts' => $retryAttempts,
             ];
         }
 
@@ -135,11 +136,11 @@ class EdgeDetectionService
             );
 
             if ($bestNeg !== null && $bestPos !== null) {
-                return [$bestNeg, $bestPos];
+                return [$bestNeg, $bestPos, $attempt];
             }
         }
 
-        return [$bestNeg, $bestPos];
+        return [$bestNeg, $bestPos, $retryMaxAttempts];
     }
 
     /**

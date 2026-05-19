@@ -14,6 +14,7 @@ class DetectedEdge extends Model
         'source_marker_id',
         'target_marker_id',
         'edge_type',
+        'retry_attempts',
     ];
 
     protected function casts(): array

@@ -59,7 +59,8 @@ test('detectEdges returns an edge when two nodes are aligned with the edge marke
     expect($edges)->toHaveCount(1)
         ->and($edges[0]['source_marker']->id)->toBe(1)
         ->and($edges[0]['target_marker']->id)->toBe(2)
-        ->and($edges[0]['edge_type'])->toBe(MarkerType::Monodirectional);
+        ->and($edges[0]['edge_type'])->toBe(MarkerType::Monodirectional)
+        ->and($edges[0]['retry_attempts'])->toBe(0);
 });
 
 test('detectEdges returns no edge when the edge marker rotation is perpendicular to the node alignment', function () {
@@ -103,7 +104,8 @@ test('detectEdges accepts a distant node via angle tolerance', function () {
 
     expect($edges)->toHaveCount(1)
         ->and($edges[0]['source_marker']->id)->toBe(1)
-        ->and($edges[0]['target_marker']->id)->toBe(2);
+        ->and($edges[0]['target_marker']->id)->toBe(2)
+        ->and($edges[0]['retry_attempts'])->toBe(0);
 });
 
 // ---------------------------------------------------------------------------
@@ -142,7 +144,8 @@ test('detectEdges finds an edge on retry when the marker is slightly skewed', fu
 
     expect($edges)->toHaveCount(1)
         ->and($edges[0]['source_marker']->id)->toBe(1)
-        ->and($edges[0]['target_marker']->id)->toBe(2);
+        ->and($edges[0]['target_marker']->id)->toBe(2)
+        ->and($edges[0]['retry_attempts'])->toBe(1);
 });
 
 test('detectEdges still returns no edge when skew exceeds all retry attempts', function () {
@@ -185,7 +188,8 @@ test('detectEdges with retry_max_attempts=0 behaves identically to original logi
 
     expect($edges)->toHaveCount(1)
         ->and($edges[0]['source_marker']->id)->toBe(1)
-        ->and($edges[0]['target_marker']->id)->toBe(2);
+        ->and($edges[0]['target_marker']->id)->toBe(2)
+        ->and($edges[0]['retry_attempts'])->toBe(0);
 });
 
 test('detectEdges finds an edge via margin widening when angle is correct but marker is far off-axis', function () {
@@ -209,5 +213,6 @@ test('detectEdges finds an edge via margin widening when angle is correct but ma
 
     expect($edges)->toHaveCount(1)
         ->and($edges[0]['source_marker']->id)->toBe(1)
-        ->and($edges[0]['target_marker']->id)->toBe(2);
+        ->and($edges[0]['target_marker']->id)->toBe(2)
+        ->and($edges[0]['retry_attempts'])->toBe(1);
 });
