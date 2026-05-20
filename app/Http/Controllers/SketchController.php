@@ -85,8 +85,6 @@ class SketchController extends Controller
      */
     public function updateCanvas(Request $request, Sketch $sketch): JsonResponse
     {
-        abort_if($sketch->created_by !== $request->user()->id, 403);
-
         $request->validate([
             'canvas_state' => 'required|array',
             'canvas_state.nodes' => 'present|array',
