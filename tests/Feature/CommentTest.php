@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Comment;
+use App\Models\Project;
+use App\Models\SharedLink;
 use App\Models\Sketch;
 use App\Models\User;
 
@@ -221,4 +223,73 @@ it('removes comments when their sketch is deleted', function () {
     $this->actingAs($user)->deleteJson("/api/sketches/{$sketch->id}")->assertNoContent();
 
     expect(Comment::find($comment->id))->toBeNull();
+});
+
+function makeShare(?string $token = null, bool $active = true): SharedLink
+{
+    $project = Project::factory()->create();
+    $sketch = Sketch::factory()->create(['project_id' => $project->id]);
+
+    return SharedLink::create([
+        'token' => $token ?? 'token-'.uniqid(),
+        'sketch_id' => $sketch->id,
+        'project_id' => $project->id,
+        'is_active' => $active,
+    ]);
+}
+
+it('lets a guest place a comment via a public share link with guest_name', function () {
+    $share = makeShare();
+
+    $this->postJson("/api/shared/{$share->token}/comments", [
+        'x' => 10,
+        'y' => 20,
+        'body' => 'feedback van bezoeker',
+        'guest_name' => 'Bezoeker',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('user_id', null)
+        ->assertJsonPath('guest_name', 'Bezoeker')
+        ->assertJsonPath('sketch_id', $share->sketch_id);
+});
+
+it('requires guest_name when placing a comment via a public share link', function () {
+    $share = makeShare();
+
+    $this->postJson("/api/shared/{$share->token}/comments", [
+        'x' => 0, 'y' => 0, 'body' => 'no name',
+    ])->assertUnprocessable();
+});
+
+it('rejects public comments on an inactive share link', function () {
+    $share = makeShare('disabled', false);
+
+    $this->postJson("/api/shared/{$share->token}/comments", [
+        'x' => 0, 'y' => 0, 'body' => 'x', 'guest_name' => 'Bezoeker',
+    ])->assertNotFound();
+});
+
+it('lists every comment on a public share link including user replies, with author info', function () {
+    $share = makeShare();
+    $user = User::factory()->create();
+    Comment::factory()->create(['sketch_id' => $share->sketch_id, 'user_id' => $user->id, 'body' => 'van user']);
+    Comment::factory()->create(['sketch_id' => $share->sketch_id, 'user_id' => null, 'guest_name' => 'Anoniem', 'body' => 'van guest']);
+
+    $this->getJson("/api/shared/{$share->token}/comments")
+        ->assertOk()
+        ->assertJsonCount(2)
+        ->assertJsonStructure([
+            '*' => ['id', 'sketch_id', 'user_id', 'guest_name', 'x', 'y', 'body'],
+        ]);
+});
+
+it('ignores parent_id sent by a guest and always stores a top-level comment', function () {
+    $share = makeShare();
+    $parent = Comment::factory()->create(['sketch_id' => $share->sketch_id, 'user_id' => null, 'guest_name' => 'Anoniem']);
+
+    $this->postJson("/api/shared/{$share->token}/comments", [
+        'x' => 0, 'y' => 0, 'body' => 'x', 'guest_name' => 'Bezoeker', 'parent_id' => $parent->id,
+    ])
+        ->assertCreated()
+        ->assertJsonPath('parent_id', null);
 });
