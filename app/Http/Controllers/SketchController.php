@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\Sketch;
+use App\Services\DrawioExportService;
 use App\Services\MermaidExportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -180,5 +181,23 @@ class SketchController extends Controller
     {
         return response($mermaid->exportSketch($sketch->canvas_state ?? []), 200)
             ->header('Content-Type', 'text/plain');
+    }
+
+    public function exportDrawioFromState(Request $request, DrawioExportService $drawio): Response
+    {
+        $validated = $request->validate([
+            'canvas_state' => 'required|array',
+            'canvas_state.nodes' => 'present|array',
+            'canvas_state.edges' => 'present|array',
+        ]);
+
+        return response($drawio->exportSketch($validated['canvas_state']), 200)
+            ->header('Content-Type', 'application/xml');
+    }
+
+    public function exportDrawioSketch(Sketch $sketch, DrawioExportService $drawio): Response
+    {
+        return response($drawio->exportSketch($sketch->canvas_state ?? []), 200)
+            ->header('Content-Type', 'application/xml');
     }
 }
