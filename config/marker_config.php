@@ -22,13 +22,16 @@
  */
 return [
     // --- Node markers ---
-    // 0 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.5, 'yPos' => 0.0, 'yNeg' => 0.0]],
-    // 1 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.5, 'yPos' => 0.0, 'yNeg' => 0.0]],
-    // 2 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.5, 'yPos' => 0.0, 'yNeg' => 0.0]],
-    // 3 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.5, 'yPos' => 0.0, 'yNeg' => 0.0]],
-    // 4 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.5, 'yPos' => 0.0, 'yNeg' => 0.0]],
+    1 => ['type' => 'node', 'hitbox' => ['xPos' => 1.6, 'xNeg' => 1.6, 'yPos' => 1.6, 'yNeg' => 1.6]], // Standaard
+    2 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.0, 'yPos' => 0.0, 'yNeg' => 4.0]],
+    3 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.0, 'yPos' => 0.0, 'yNeg' => 4.0]],
+    4 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.2, 'yPos' => 3.2, 'yNeg' => 0.0]],
+    5 => ['type' => 'node', 'hitbox' => ['xPos' => 1.6, 'xNeg' => 1.6, 'yPos' => 1.4, 'yNeg' => 2.0]],
+    6 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 5.0, 'yPos' => 0.0, 'yNeg' => 2.0]],
     // --- Edge markers ---
-    21 => ['type' => 'directionless',   'hitbox' => ['xPos' => 4, 'xNeg' => 0.0, 'yPos' => 0.0, 'yNeg' => 0.0]],
-    22 => ['type' => 'monodirectional', 'hitbox' => ['xPos' => 4, 'xNeg' => 0.0, 'yPos' => 0.0, 'yNeg' => 0.0]],
-    23 => ['type' => 'bidirectional',   'hitbox' => ['xPos' => 4, 'xNeg' => 0.0, 'yPos' => 0.0, 'yNeg' => 0.0]],
+    21 => ['type' => 'directionless', 'hitbox' => ['xPos' => 2.7, 'xNeg' => 2.7, 'yPos' => 0.0, 'yNeg' => 0.0]],
+    22 => ['type' => 'monodirectional', 'hitbox' => ['xPos' => 2.7, 'xNeg' => 2.7, 'yPos' => 0.0, 'yNeg' => 0.0]],
+    23 => ['type' => 'bidirectional', 'hitbox' => ['xPos' => 2.7, 'xNeg' => 2.7, 'yPos' => 0.0, 'yNeg' => 0.0]],
+    // --- Notities ---
+    41 => ['type' => 'node', 'hitbox' => ['xPos' => 3.2, 'xNeg' => 0.0, 'yPos' => 0.0, 'yNeg' => 3.2]],
 ];

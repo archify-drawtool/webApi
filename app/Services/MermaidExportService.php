@@ -12,6 +12,7 @@ class MermaidExportService
         'hexagon',
         'circle',
         'rounded',
+        'note',
     ];
 
     // ─── Shared helpers ───────────────────────────────────────────────────────
@@ -62,6 +63,7 @@ class MermaidExportService
             'hexagon' => "{$safeId}{{\"$escapedLabel\"}}",
             'circle' => "{$safeId}((\"$escapedLabel\"))",
             'rounded' => "{$safeId}(\"$escapedLabel\")",
+            'note' => "{$safeId}[\"📝 $escapedLabel\"]",
             default => "{$safeId}[\"$escapedLabel\"]",
         };
     }
@@ -107,15 +109,19 @@ class MermaidExportService
     {
         $hasStart = ! empty($edge['markerStart']);
         $hasEnd = ! empty($edge['markerEnd']);
+        $dashed = ! empty($edge['style']['strokeDasharray']);
 
         if ($hasStart && $hasEnd) {
-            return 'bi';
+            return $dashed ? 'bi_dashed' : 'bi';
         }
         if ($hasEnd) {
-            return 'mono';
+            return $dashed ? 'mono_dashed' : 'mono';
+        }
+        if ($hasStart) {
+            return $dashed ? 'mono_start_dashed' : 'mono_start';
         }
 
-        return 'none';
+        return $dashed ? 'none_dashed' : 'none';
     }
 
     /** Resolve the Mermaid arrow syntax for a given type via config/mermaid.php. */
@@ -141,7 +147,12 @@ class MermaidExportService
 
         $source = $this->sanitizeId($edge['source']);
         $target = $this->sanitizeId($edge['target']);
-        $arrow = $this->resolveArrow($this->detectArrowType($edge));
+        $arrowType = $this->detectArrowType($edge);
+        $arrow = $this->resolveArrow($arrowType);
+
+        if (str_starts_with($arrowType, 'mono_start')) {
+            [$source, $target] = [$target, $source];
+        }
 
         $rawLabel = trim($edge['label'] ?? '');
 

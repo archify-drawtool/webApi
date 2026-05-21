@@ -234,9 +234,40 @@ test('detectArrowType geeft "bi" terug wanneer zowel markerStart als markerEnd a
     expect($this->service->detectArrowType($edge))->toBe('bi');
 });
 
+test('detectArrowType geeft "mono_start" terug wanneer alleen markerStart aanwezig is', function () {
+    $edge = ['source' => 'a', 'target' => 'b', 'markerStart' => ['type' => 'arrowclosed']];
+    expect($this->service->detectArrowType($edge))->toBe('mono_start');
+});
+
+test('detectArrowType geeft "mono_start_dashed" terug voor stippellijn met alleen markerStart', function () {
+    $edge = ['source' => 'a', 'target' => 'b', 'markerStart' => ['type' => 'arrowclosed'], 'style' => ['strokeDasharray' => '6 4']];
+    expect($this->service->detectArrowType($edge))->toBe('mono_start_dashed');
+});
+
 test('detectArrowType geeft "none" terug wanneer markerEnd null is', function () {
     $edge = ['source' => 'a', 'target' => 'b', 'markerEnd' => null];
     expect($this->service->detectArrowType($edge))->toBe('none');
+});
+
+test('detectArrowType geeft "none_dashed" terug voor een stippellijn zonder markers', function () {
+    $edge = ['source' => 'a', 'target' => 'b', 'style' => ['strokeDasharray' => '6 4']];
+    expect($this->service->detectArrowType($edge))->toBe('none_dashed');
+});
+
+test('detectArrowType geeft "mono_dashed" terug voor een stippellijn met markerEnd', function () {
+    $edge = ['source' => 'a', 'target' => 'b', 'markerEnd' => ['type' => 'arrowclosed'], 'style' => ['strokeDasharray' => '6 4']];
+    expect($this->service->detectArrowType($edge))->toBe('mono_dashed');
+});
+
+test('detectArrowType geeft "bi_dashed" terug voor een stippellijn met beide markers', function () {
+    $edge = [
+        'source' => 'a',
+        'target' => 'b',
+        'markerStart' => ['type' => 'arrowclosed'],
+        'markerEnd' => ['type' => 'arrowclosed'],
+        'style' => ['strokeDasharray' => '6 4'],
+    ];
+    expect($this->service->detectArrowType($edge))->toBe('bi_dashed');
 });
 
 // ─── resolveArrow ─────────────────────────────────────────────────────────────
@@ -249,8 +280,28 @@ test('resolveArrow geeft "-->" terug voor mono', function () {
     expect($this->service->resolveArrow('mono'))->toBe('-->');
 });
 
+test('resolveArrow geeft "-->" terug voor mono_start', function () {
+    expect($this->service->resolveArrow('mono_start'))->toBe('-->');
+});
+
+test('resolveArrow geeft ".->" terug voor mono_start_dashed', function () {
+    expect($this->service->resolveArrow('mono_start_dashed'))->toBe('-.->');
+});
+
 test('resolveArrow geeft "<-->" terug voor bi', function () {
     expect($this->service->resolveArrow('bi'))->toBe('<-->');
+});
+
+test('resolveArrow geeft "-.-" terug voor none_dashed', function () {
+    expect($this->service->resolveArrow('none_dashed'))->toBe('-.-');
+});
+
+test('resolveArrow geeft ".->" terug voor mono_dashed', function () {
+    expect($this->service->resolveArrow('mono_dashed'))->toBe('-.->');
+});
+
+test('resolveArrow geeft "<-.->" terug voor bi_dashed', function () {
+    expect($this->service->resolveArrow('bi_dashed'))->toBe('<-.->');
 });
 
 test('resolveArrow valt terug op default_arrow voor onbekend type', function () {
@@ -287,6 +338,37 @@ test('convertEdge voegt het label toe tussen pipes wanneer een label aanwezig is
 test('convertEdge escaped aanhalingstekens in het edge label', function () {
     $edge = ['source' => 'a', 'target' => 'b', 'markerEnd' => ['type' => 'arrowclosed'], 'label' => 'stuurt "data"'];
     expect($this->service->convertEdge($edge))->toBe('a -->|"stuurt &quot;data&quot;"| b');
+});
+
+test('convertEdge geeft een pijl bij bron terug voor een edge met alleen markerStart (bron/doel omgewisseld)', function () {
+    $edge = ['source' => 'a', 'target' => 'b', 'markerStart' => ['type' => 'arrowclosed']];
+    expect($this->service->convertEdge($edge))->toBe('b --> a');
+});
+
+test('convertEdge geeft een stippelpijl bij bron terug (bron/doel omgewisseld)', function () {
+    $edge = ['source' => 'a', 'target' => 'b', 'markerStart' => ['type' => 'arrowclosed'], 'style' => ['strokeDasharray' => '6 4']];
+    expect($this->service->convertEdge($edge))->toBe('b -.-> a');
+});
+
+test('convertEdge geeft een stippellijn zonder pijl terug', function () {
+    $edge = ['source' => 'a', 'target' => 'b', 'style' => ['strokeDasharray' => '6 4']];
+    expect($this->service->convertEdge($edge))->toBe('a -.- b');
+});
+
+test('convertEdge geeft een stippellijn met pijl terug', function () {
+    $edge = ['source' => 'a', 'target' => 'b', 'markerEnd' => ['type' => 'arrowclosed'], 'style' => ['strokeDasharray' => '6 4']];
+    expect($this->service->convertEdge($edge))->toBe('a -.-> b');
+});
+
+test('convertEdge geeft een bidirectionele stippellijn terug', function () {
+    $edge = [
+        'source' => 'a',
+        'target' => 'b',
+        'markerStart' => ['type' => 'arrowclosed'],
+        'markerEnd' => ['type' => 'arrowclosed'],
+        'style' => ['strokeDasharray' => '6 4'],
+    ];
+    expect($this->service->convertEdge($edge))->toBe('a <-.-> b');
 });
 
 test('convertEdge exporteert zonder label wanneer het label leeg is', function () {
@@ -376,4 +458,55 @@ test('exportSketch plaatst node-declaraties voor edge-declaraties', function () 
     expect($lines[0])->toBe('flowchart TD')
         ->and($lines[1])->toContain('a[["A"]]')
         ->and($lines[2])->toContain('a --> b');
+});
+
+// ─── note node-type ───────────────────────────────────────────────────────────
+
+test('convertNode geeft een note-formaat terug voor shape note', function () {
+    $node = ['id' => 'note-1', 'data' => ['label' => 'Extra toelichting']];
+    expect($this->service->convertNode($node, 'note'))->toBe('note-1["📝 Extra toelichting"]');
+});
+
+test('convertNode voegt emoji toe voor note zonder label (gebruikt id als fallback)', function () {
+    $node = ['id' => 'note-1', 'data' => ['label' => '']];
+    expect($this->service->convertNode($node, 'note'))->toBe('note-1["📝 note-1"]');
+});
+
+test('convertNode escaped aanhalingstekens in het label van een note', function () {
+    $node = ['id' => 'note-1', 'data' => ['label' => 'Let op: "belangrijk"']];
+    expect($this->service->convertNode($node, 'note'))->toBe('note-1["📝 Let op: &quot;belangrijk&quot;"]');
+});
+
+test('nodeToMermaid gebruikt note shape voor type note', function () {
+    $node = ['id' => 'note-1', 'type' => 'note', 'data' => ['label' => 'Zie README']];
+    expect($this->service->nodeToMermaid($node))->toBe('note-1["📝 Zie README"]');
+});
+
+test('buildShapeMap bevat note als sleutel', function () {
+    $map = $this->service->buildShapeMap();
+    expect($map)->toHaveKey('note')
+        ->and($map['note'])->toBe('note');
+});
+
+test('exportSketch exporteert note nodes met emoji-prefix', function () {
+    $canvasState = [
+        'nodes' => [
+            ['id' => 'srv-1',  'type' => 'server', 'data' => ['label' => 'API']],
+            ['id' => 'note-1', 'type' => 'note',   'data' => ['label' => 'Let op dit']],
+        ],
+        'edges' => [
+            ['id' => 'e1', 'source' => 'srv-1', 'target' => 'note-1'],
+        ],
+    ];
+
+    $result = $this->service->exportSketch($canvasState);
+
+    expect($result)
+        ->toContain('srv-1[["API"]]')
+        ->toContain('note-1["📝 Let op dit"]')
+        ->toContain('srv-1 --- note-1');
+});
+
+test('SHAPES constante bevat note', function () {
+    expect(MermaidExportService::SHAPES)->toContain('note');
 });
