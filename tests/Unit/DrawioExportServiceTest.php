@@ -75,20 +75,29 @@ test('detectArrowType geeft "_dashed"-variant terug voor stippellijnen', functio
 });
 
 test('resolveEdgeStyle geeft drawio edge stijl terug voor mono', function () {
-    expect($this->service->resolveEdgeStyle('mono'))->toBe('endArrow=classic;html=1;');
+    expect($this->service->resolveEdgeStyle('mono'))
+        ->toBe('edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;');
 });
 
 test('resolveEdgeStyle geeft startArrow stijl terug voor mono_start', function () {
-    expect($this->service->resolveEdgeStyle('mono_start'))->toBe('startArrow=classic;endArrow=none;html=1;');
+    expect($this->service->resolveEdgeStyle('mono_start'))
+        ->toBe('edgeStyle=orthogonalEdgeStyle;startArrow=classic;endArrow=none;html=1;');
 });
 
 test('resolveEdgeStyle geeft dashed stijl terug voor bi_dashed', function () {
     expect($this->service->resolveEdgeStyle('bi_dashed'))
-        ->toBe('endArrow=classic;startArrow=classic;html=1;dashed=1;');
+        ->toBe('edgeStyle=orthogonalEdgeStyle;endArrow=classic;startArrow=classic;html=1;dashed=1;');
 });
 
 test('resolveEdgeStyle valt terug op default voor onbekend type', function () {
-    expect($this->service->resolveEdgeStyle('onbekend'))->toBe('endArrow=classic;html=1;');
+    expect($this->service->resolveEdgeStyle('onbekend'))
+        ->toBe('edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;');
+});
+
+test('resolveEdgeStyle gebruikt orthogonale lijnen voor alle pijl-typen', function () {
+    foreach (['none', 'mono', 'mono_start', 'bi', 'none_dashed', 'mono_dashed', 'mono_start_dashed', 'bi_dashed'] as $type) {
+        expect($this->service->resolveEdgeStyle($type))->toContain('edgeStyle=orthogonalEdgeStyle');
+    }
 });
 
 test('resolveNodeSize geeft expliciete width en height terug', function () {
@@ -109,6 +118,11 @@ test('resolveNodeSize valt terug op default voor reguliere nodes', function () {
 test('resolveNodeSize valt terug op grotere default voor note nodes', function () {
     expect($this->service->resolveNodeSize(['type' => 'note']))
         ->toBe(['width' => 180, 'height' => 100]);
+});
+
+test('resolveNodeSize gebruikt een smallere default voor user nodes zodat de actor niet uitrekt', function () {
+    expect($this->service->resolveNodeSize(['type' => 'user']))
+        ->toBe(['width' => 60, 'height' => 80]);
 });
 
 test('convertNode bouwt een mxCell met label, stijl, positie en grootte', function () {
@@ -202,7 +216,7 @@ test('convertEdge bouwt een mxCell met source, target en stijl', function () {
 
     expect($xml)
         ->toContain('<mxCell id="e_e1"')
-        ->toContain('style="endArrow=classic;html=1;"')
+        ->toContain('style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;"')
         ->toContain('edge="1"')
         ->toContain('source="n_a"')
         ->toContain('target="n_b"')

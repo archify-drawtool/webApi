@@ -66,10 +66,11 @@ class DrawioExportService
 
     public function resolveNodeSize(array $node): array
     {
-        $isNote = ($node['type'] ?? null) === 'note';
-        $default = $isNote
-            ? config('drawio.note_node_size', ['width' => 180, 'height' => 100])
-            : config('drawio.default_node_size', ['width' => 120, 'height' => 60]);
+        $default = match ($node['type'] ?? null) {
+            'note' => config('drawio.note_node_size', ['width' => 180, 'height' => 100]),
+            'user' => config('drawio.user_node_size', ['width' => 60, 'height' => 80]),
+            default => config('drawio.default_node_size', ['width' => 120, 'height' => 60]),
+        };
 
         $width = $node['width']
             ?? $node['dimensions']['width']
