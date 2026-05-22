@@ -170,7 +170,6 @@ class VueFlowConversionService
             'label' => $edge->edgeMarker->ocr_text ?? '',
             'data' => [
                 'edgeType' => $edgeType,
-                'retryAttempts' => $edge->retry_attempts,
             ],
         ];
 
