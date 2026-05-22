@@ -48,6 +48,7 @@ class DetectionDebugService
                 $nodeMarkers[] = $base;
             } else {
                 $detectedEdge = $edgeByMarkerId->get($marker->id);
+                $base['is_detected'] = $detectedEdge !== null;
                 $base['detection_lines'] = $this->detectionLinesForMarker(
                     $marker,
                     $detectedEdge?->sourceMarker,
