@@ -97,6 +97,7 @@ readonly class PhotoService
                     'source_marker_id' => $edge['source_marker']->id,
                     'target_marker_id' => $edge['target_marker']->id,
                     'edge_type' => $edge['edge_type']->value,
+                    'retry_attempts' => $edge['retry_attempts'],
                 ]);
             }
 
