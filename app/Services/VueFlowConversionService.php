@@ -168,7 +168,9 @@ class VueFlowConversionService
             'sourceHandle' => $sourceHandle,
             'targetHandle' => $targetHandle,
             'label' => $edge->edgeMarker->ocr_text ?? '',
-            'data' => ['edgeType' => $edgeType],
+            'data' => [
+                'edgeType' => $edgeType,
+            ],
         ];
 
         if ($edgeType === MarkerType::Monodirectional->value) {

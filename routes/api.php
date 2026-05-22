@@ -40,8 +40,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/sketches/{sketch}/rename', [SketchController::class, 'renameSketch']);
     Route::delete('/sketches/{sketch}', [SketchController::class, 'destroySketch']);
     Route::get('/sketches/{sketch}/export/mermaid', [SketchController::class, 'exportMermaidSketch']);
+    Route::get('/sketches/{sketch}/export/drawio', [SketchController::class, 'exportDrawioSketch']);
     Route::get('/projects/{project}/sketches', [SketchController::class, 'index']);
     Route::post('/export/mermaid', [SketchController::class, 'exportMermaidFromState']);
+    Route::post('/export/drawio', [SketchController::class, 'exportDrawioFromState']);
     Route::get('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'status']);
     Route::post('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'toggle']);
     Route::get('/sketches/{sketch}/comments', [CommentController::class, 'index']);
