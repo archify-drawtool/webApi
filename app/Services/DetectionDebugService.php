@@ -16,13 +16,18 @@ class DetectionDebugService
         $marginFactor = (float) config('aruco.edge_margin');
         $angleDeg = (float) config('aruco.edge_angle_margin');
 
-        $markers = $result->markers->map(function (ArucoMarker $marker) use ($markerConfig) {
+        $edgeByMarkerId = $result->edges->keyBy('edge_marker_id');
+
+        $nodeMarkers = [];
+        $edgeMarkers = [];
+
+        foreach ($result->markers as $marker) {
             $cfg = $markerConfig[$marker->marker_id] ?? [
                 'type' => 'node',
                 'hitbox' => ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0],
             ];
 
-            return [
+            $base = [
                 'id' => $marker->id,
                 'marker_id' => $marker->marker_id,
                 'center_x' => $marker->center_x,
@@ -38,7 +43,21 @@ class DetectionDebugService
                 'hitbox' => $cfg['hitbox'],
                 'hitbox_corners' => $this->hitboxCorners($marker, $cfg['hitbox']),
             ];
-        })->values();
+
+            if ($cfg['type'] === 'node') {
+                $nodeMarkers[] = $base;
+            } else {
+                $detectedEdge = $edgeByMarkerId->get($marker->id);
+                $base['detection_lines'] = $this->detectionLinesForMarker(
+                    $marker,
+                    $detectedEdge?->sourceMarker,
+                    $detectedEdge?->targetMarker,
+                    $marginFactor,
+                    $angleDeg
+                );
+                $edgeMarkers[] = $base;
+            }
+        }
 
         $edges = $result->edges->map(fn (DetectedEdge $edge) => [
             'id' => $edge->id,
@@ -46,11 +65,11 @@ class DetectionDebugService
             'edge_marker_id' => $edge->edge_marker_id,
             'source_marker_id' => $edge->source_marker_id,
             'target_marker_id' => $edge->target_marker_id,
-            'detection_lines' => $this->detectionLines($edge, $marginFactor, $angleDeg),
         ])->values();
 
         return [
-            'markers' => $markers,
+            'node_markers' => array_values($nodeMarkers),
+            'edge_markers' => array_values($edgeMarkers),
             'edges' => $edges,
             'config' => [
                 'edge_margin' => $marginFactor,
@@ -69,26 +88,33 @@ class DetectionDebugService
         );
     }
 
-    private function detectionLines(DetectedEdge $edge, float $marginFactor, float $angleDeg): array
-    {
-        $em = $edge->edgeMarker;
-        $src = $edge->sourceMarker;
-        $tgt = $edge->targetMarker;
-
+    private function detectionLinesForMarker(
+        ArucoMarker $em,
+        ?ArucoMarker $src,
+        ?ArucoMarker $tgt,
+        float $marginFactor,
+        float $angleDeg
+    ): array {
         $rRad = deg2rad($em->rotation);
         $mainX = cos($rRad);
         $mainY = sin($rRad);
         $perpX = -sin($rRad);
         $perpY = cos($rRad);
 
-        $baseMargin = $marginFactor * MarkerGeometry::markerDimensions($em->corners)['width'];
+        $markerWidth = MarkerGeometry::markerDimensions($em->corners)['width'];
+        $baseMargin = $marginFactor * $markerWidth;
         $angleTan = tan(deg2rad($angleDeg));
 
-        // Signed axial distances from edge marker center to each node (source is negative, target positive)
-        $dSrc = ($src->center_x - $em->center_x) * $mainX + ($src->center_y - $em->center_y) * $mainY;
-        $dTgt = ($tgt->center_x - $em->center_x) * $mainX + ($tgt->center_y - $em->center_y) * $mainY;
+        $fallback = 9999;
 
-        // Corridor half-width at each axial position (matches EdgeDetectionService tolerance formula)
+        $dSrc = $src !== null
+            ? ($src->center_x - $em->center_x) * $mainX + ($src->center_y - $em->center_y) * $mainY
+            : -$fallback;
+
+        $dTgt = $tgt !== null
+            ? ($tgt->center_x - $em->center_x) * $mainX + ($tgt->center_y - $em->center_y) * $mainY
+            : $fallback;
+
         $marginSrc = $baseMargin + $angleTan * abs($dSrc);
         $marginTgt = $baseMargin + $angleTan * abs($dTgt);
 
