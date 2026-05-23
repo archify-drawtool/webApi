@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Helpers\MarkerGeometry;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -36,6 +37,94 @@ class OcrService
         }
 
         return $this->callVisionApi(array_map('base64_encode', $imageDataItems));
+    }
+
+    /**
+     * Run DOCUMENT_TEXT_DETECTION on a full image and return per-marker OCR text.
+     * Makes exactly one Vision API call regardless of marker count.
+     *
+     * @param  array[]  $markers  Raw marker arrays from ArucoService (id, center, corners, rotation)
+     * @return string[]  Indexed by marker order; empty string when no text falls in the hitbox
+     */
+    public function recognizeTextInRegions(string $imagePath, array $markers): array
+    {
+        if (empty($markers)) {
+            return [];
+        }
+
+        $textAnnotations = $this->recognizeFullImage($imagePath);
+
+        return $this->matchTextToMarkers($textAnnotations, $markers);
+    }
+
+    /**
+     * @return array[]  textAnnotations[1..] from Vision (word-level blocks with boundingPoly)
+     */
+    private function recognizeFullImage(string $imagePath): array
+    {
+        $base64 = base64_encode(file_get_contents($imagePath));
+        $apiKey = config('services.google_cloud_vision.api_key');
+
+        try {
+            $response = Http::post(self::VISION_API_URL.'?key='.$apiKey, [
+                'requests' => [[
+                    'image' => ['content' => $base64],
+                    'features' => [['type' => 'DOCUMENT_TEXT_DETECTION']],
+                    'imageContext' => ['languageHints' => ['en', 'nl']],
+                ]],
+            ]);
+
+            $response->throw();
+        } catch (RequestException $e) {
+            throw new HttpException(502, 'Google Cloud Vision API error: '.$e->response->status());
+        }
+
+        $annotations = $response->json('responses.0.textAnnotations') ?? [];
+
+        return array_slice($annotations, 1);
+    }
+
+    /**
+     * @param  array[]  $textAnnotations  Word-level Vision blocks (description + boundingPoly.vertices)
+     * @param  array[]  $markers  Raw marker arrays from ArucoService
+     * @return string[]
+     */
+    private function matchTextToMarkers(array $textAnnotations, array $markers): array
+    {
+        $results = array_fill(0, count($markers), '');
+
+        foreach ($markers as $index => $marker) {
+            $cx = (float) $marker['center']['x'];
+            $cy = (float) $marker['center']['y'];
+            $corners = $marker['corners'];
+
+            $width = MarkerGeometry::euclideanDistance(
+                (float) $corners[0]['x'], (float) $corners[0]['y'],
+                (float) $corners[1]['x'], (float) $corners[1]['y'],
+            );
+
+            $hitbox = MarkerGeometry::resolveHitbox((int) $marker['id']);
+            $hitboxCorners = MarkerGeometry::hitboxCorners($cx, $cy, $width, $hitbox, (float) $marker['rotation']);
+
+            $words = [];
+            foreach ($textAnnotations as $block) {
+                $vertices = $block['boundingPoly']['vertices'] ?? [];
+                if (empty($vertices)) {
+                    continue;
+                }
+
+                $centroidX = array_sum(array_column($vertices, 'x')) / count($vertices);
+                $centroidY = array_sum(array_column($vertices, 'y')) / count($vertices);
+
+                if (MarkerGeometry::pointInHitbox($centroidX, $centroidY, $hitboxCorners)) {
+                    $words[] = $block['description'];
+                }
+            }
+
+            $results[$index] = implode(' ', $words);
+        }
+
+        return $results;
     }
 
     /**
