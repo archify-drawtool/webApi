@@ -80,7 +80,7 @@ final class MarkerGeometry
      * World-coordinate corners of the hitbox rectangle around a marker.
      *
      * @param  array{xPos: float, xNeg: float, yPos: float, yNeg: float}  $hitbox
-     * @return array<array{x: float, y: float}>  Four corners in local TL→TR→BR→BL order.
+     * @return array<array{x: float, y: float}> Four corners in local TL→TR→BR→BL order.
      */
     public static function hitboxCorners(
         float $cx, float $cy,
@@ -94,8 +94,8 @@ final class MarkerGeometry
 
         $local = [
             [-(0.5 + $hitbox['xNeg']) * $markerW, -(0.5 + $hitbox['yNeg']) * $markerW],
-            [ (0.5 + $hitbox['xPos']) * $markerW, -(0.5 + $hitbox['yNeg']) * $markerW],
-            [ (0.5 + $hitbox['xPos']) * $markerW,  (0.5 + $hitbox['yPos']) * $markerW],
+            [(0.5 + $hitbox['xPos']) * $markerW, -(0.5 + $hitbox['yNeg']) * $markerW],
+            [(0.5 + $hitbox['xPos']) * $markerW,  (0.5 + $hitbox['yPos']) * $markerW],
             [-(0.5 + $hitbox['xNeg']) * $markerW,  (0.5 + $hitbox['yPos']) * $markerW],
         ];
 
