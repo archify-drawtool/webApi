@@ -52,7 +52,7 @@ class OcrService
             return [];
         }
 
-        $textAnnotations = $this->recognizeFullImage($imagePath);
+        $textAnnotations = $this->recognizeFullImage($imagePath, $markers);
 
         return $this->matchTextToMarkers($textAnnotations, $markers);
     }
@@ -60,9 +60,9 @@ class OcrService
     /**
      * @return array[]  textAnnotations[1..] from Vision (word-level blocks with boundingPoly)
      */
-    private function recognizeFullImage(string $imagePath): array
+    private function recognizeFullImage(string $imagePath, array $markers): array
     {
-        $base64 = base64_encode(file_get_contents($imagePath));
+        $base64 = base64_encode($this->blankMarkers($imagePath, $markers));
         $apiKey = config('services.google_cloud_vision.api_key');
 
         try {
@@ -125,6 +125,46 @@ class OcrService
         }
 
         return $results;
+    }
+
+    /**
+     * Load the image, paint a filled white polygon over every marker's corner quadrilateral,
+     * and return the result as raw JPEG bytes. The modified image is never written to disk.
+     *
+     * @param  array[]  $markers  Raw marker arrays from ArucoService (corners in TL→TR→BR→BL order)
+     */
+    private function blankMarkers(string $imagePath, array $markers): string
+    {
+        $info = getimagesize($imagePath);
+        $img = match ($info[2] ?? null) {
+            IMAGETYPE_JPEG => imagecreatefromjpeg($imagePath),
+            IMAGETYPE_PNG  => imagecreatefrompng($imagePath),
+            IMAGETYPE_WEBP => imagecreatefromwebp($imagePath),
+            default        => throw new \RuntimeException("Unsupported image type for marker blanking: $imagePath"),
+        };
+
+        if ($img === false) {
+            throw new \RuntimeException("Failed to load image for marker blanking: $imagePath");
+        }
+
+        $white = imagecolorallocate($img, 255, 255, 255);
+
+        foreach ($markers as $marker) {
+            $c = $marker['corners'];
+            imagefilledpolygon($img, [
+                (int) round($c[0]['x']), (int) round($c[0]['y']),
+                (int) round($c[1]['x']), (int) round($c[1]['y']),
+                (int) round($c[2]['x']), (int) round($c[2]['y']),
+                (int) round($c[3]['x']), (int) round($c[3]['y']),
+            ], $white);
+        }
+
+        ob_start();
+        imagejpeg($img, null, 95);
+        $bytes = ob_get_clean();
+        imagedestroy($img);
+
+        return $bytes;
     }
 
     /**
