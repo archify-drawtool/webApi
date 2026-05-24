@@ -174,7 +174,7 @@ it('updates the body of a comment', function () {
         ->assertJsonPath('body', 'nieuw');
 });
 
-it('lets any authenticated user update or delete any comment', function () {
+it('forbids editing the body of a comment by another user', function () {
     $author = User::factory()->create();
     $other = User::factory()->create();
     $sketch = Sketch::factory()->create(['created_by' => $author->id]);
@@ -182,14 +182,50 @@ it('lets any authenticated user update or delete any comment', function () {
 
     $this->actingAs($other)
         ->patchJson("/api/comments/{$comment->id}", ['body' => 'gewijzigd'])
-        ->assertOk()
-        ->assertJsonPath('body', 'gewijzigd');
+        ->assertForbidden();
+
+    expect($comment->fresh()->body)->toBe('oud');
+});
+
+it('lets any authenticated user move any comment', function () {
+    $author = User::factory()->create();
+    $other = User::factory()->create();
+    $sketch = Sketch::factory()->create(['created_by' => $author->id]);
+    $comment = Comment::factory()->create(['sketch_id' => $sketch->id, 'user_id' => $author->id, 'x' => 10, 'y' => 10]);
 
     $this->actingAs($other)
-        ->deleteJson("/api/comments/{$comment->id}")
+        ->patchJson("/api/comments/{$comment->id}", ['x' => 50, 'y' => 75])
+        ->assertOk();
+
+    expect($comment->fresh()->x)->toBe(50.0)
+        ->and($comment->fresh()->y)->toBe(75.0);
+});
+
+it('lets any authenticated user resolve a thread by deleting the root comment', function () {
+    $author = User::factory()->create();
+    $other = User::factory()->create();
+    $sketch = Sketch::factory()->create(['created_by' => $author->id]);
+    $root = Comment::factory()->create(['sketch_id' => $sketch->id, 'user_id' => $author->id, 'parent_id' => null]);
+
+    $this->actingAs($other)
+        ->deleteJson("/api/comments/{$root->id}")
         ->assertNoContent();
 
-    expect(Comment::find($comment->id))->toBeNull();
+    expect(Comment::find($root->id))->toBeNull();
+});
+
+it('forbids deleting a reply that belongs to another user', function () {
+    $author = User::factory()->create();
+    $other = User::factory()->create();
+    $sketch = Sketch::factory()->create(['created_by' => $author->id]);
+    $root = Comment::factory()->create(['sketch_id' => $sketch->id, 'user_id' => $author->id]);
+    $reply = Comment::factory()->create(['sketch_id' => $sketch->id, 'user_id' => $author->id, 'parent_id' => $root->id]);
+
+    $this->actingAs($other)
+        ->deleteJson("/api/comments/{$reply->id}")
+        ->assertForbidden();
+
+    expect(Comment::find($reply->id))->not->toBeNull();
 });
 
 it('deletes a comment', function () {
