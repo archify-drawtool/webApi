@@ -104,8 +104,6 @@ class SketchController extends Controller
      */
     public function updateCanvas(Request $request, Sketch $sketch): JsonResponse
     {
-        abort_if($sketch->created_by !== $request->user()->id, 403);
-
         $request->validate([
             'canvas_state' => 'required|array',
             'canvas_state.nodes' => 'present|array',
@@ -134,8 +132,6 @@ class SketchController extends Controller
      */
     public function renameSketch(Request $request, Sketch $sketch): JsonResponse
     {
-        abort_if($sketch->created_by !== $request->user()->id, 403);
-
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
         ]);
@@ -167,8 +163,6 @@ class SketchController extends Controller
      */
     public function destroySketch(Request $request, Sketch $sketch): Response
     {
-        abort_if($sketch->created_by !== $request->user()->id, 403);
-
         $sketch->delete();
 
         return response()->noContent();
