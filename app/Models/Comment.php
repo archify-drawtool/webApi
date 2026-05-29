@@ -14,6 +14,7 @@ class Comment extends Model
     protected $fillable = [
         'sketch_id',
         'user_id',
+        'guest_name',
         'parent_id',
         'x',
         'y',
