@@ -162,7 +162,6 @@ class OcrService
         ob_start();
         imagejpeg($img, null, 95);
         $bytes = ob_get_clean();
-        imagedestroy($img);
 
         return $bytes;
     }
