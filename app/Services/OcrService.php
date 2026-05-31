@@ -44,7 +44,7 @@ class OcrService
      * Makes exactly one Vision API call regardless of marker count.
      *
      * @param  array[]  $markers  Raw marker arrays from ArucoService (id, center, corners, rotation)
-     * @return string[]  Indexed by marker order; empty string when no text falls in the hitbox
+     * @return string[] Indexed by marker order; empty string when no text falls in the hitbox
      */
     public function recognizeTextInRegions(string $imagePath, array $markers): array
     {
@@ -58,7 +58,7 @@ class OcrService
     }
 
     /**
-     * @return array[]  textAnnotations[1..] from Vision (word-level blocks with boundingPoly)
+     * @return array[] textAnnotations[1..] from Vision (word-level blocks with boundingPoly)
      */
     private function recognizeFullImage(string $imagePath, array $markers): array
     {
@@ -138,9 +138,9 @@ class OcrService
         $info = getimagesize($imagePath);
         $img = match ($info[2] ?? null) {
             IMAGETYPE_JPEG => imagecreatefromjpeg($imagePath),
-            IMAGETYPE_PNG  => imagecreatefrompng($imagePath),
+            IMAGETYPE_PNG => imagecreatefrompng($imagePath),
             IMAGETYPE_WEBP => imagecreatefromwebp($imagePath),
-            default        => throw new \RuntimeException("Unsupported image type for marker blanking: $imagePath"),
+            default => throw new \RuntimeException("Unsupported image type for marker blanking: $imagePath"),
         };
 
         if ($img === false) {

@@ -143,5 +143,4 @@ readonly class PhotoService
 
         return $this->getDetectionResult($photo->filename);
     }
-
 }
