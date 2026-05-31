@@ -25,7 +25,7 @@ readonly class PhotoService
         private VueFlowConversionService $vueFlowConversionService,
     ) {}
 
-    public function store(UploadedFile $photo, int $projectId): Photo
+    public function store(UploadedFile $photo, int $projectId, int $createdBy): Photo
     {
         $filename = now()->timezone('Europe/Amsterdam')->format('Y-m-d_H-i-s_v').'.'.$photo->getClientOriginalExtension();
         $path = $photo->storeAs('photos', $filename, 'local');
@@ -37,12 +37,12 @@ readonly class PhotoService
             'status' => PhotoStatus::Processing,
         ]);
 
-        ProcessPhotoJob::dispatch($photoModel);
+        ProcessPhotoJob::dispatch($photoModel, $createdBy);
 
         return $photoModel;
     }
 
-    public function process(Photo $photo): void
+    public function process(Photo $photo, ?int $createdBy = null): void
     {
         $absolutePath = Storage::disk('local')->path($photo->path);
 
@@ -101,7 +101,11 @@ readonly class PhotoService
                 ]);
             }
 
-            $sketch = $this->vueFlowConversionService->convert($detectionResult, $photo->project_id);
+            $sketch = $this->vueFlowConversionService->convert(
+                $detectionResult,
+                $photo->project_id,
+                $createdBy ?? $this->projectCreatorId($photo),
+            );
 
             $photo->update([
                 'status' => PhotoStatus::Completed,
@@ -132,6 +136,13 @@ readonly class PhotoService
             'edges.sourceMarker',
             'edges.targetMarker',
         ])->where('filename', $filename)->first();
+    }
+
+    private function projectCreatorId(Photo $photo): ?int
+    {
+        $createdBy = $photo->project()->value('created_by');
+
+        return $createdBy === null ? null : (int) $createdBy;
     }
 
     /**

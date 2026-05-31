@@ -25,7 +25,7 @@ class PhotoController extends Controller
         ]);
 
         $projectId = $request->integer('project_id');
-        $photo = $this->photoService->store($request->file('photo'), $projectId);
+        $photo = $this->photoService->store($request->file('photo'), $projectId, $request->user()->id);
 
         return response()->json([
             'message' => 'Photo uploaded successfully',

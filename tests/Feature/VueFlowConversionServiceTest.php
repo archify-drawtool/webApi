@@ -53,11 +53,12 @@ test('converts 4 nodes and 3 edges of all types into a sketch', function () {
         'edge_type' => MarkerType::Bidirectional,
     ]);
 
-    $sketch = (new VueFlowConversionService)->convert($result, $project->id);
+    $sketch = (new VueFlowConversionService)->convert($result, $project->id, $user->id);
 
     $nodes = $sketch->canvas_state['nodes'];
     $edges = $sketch->canvas_state['edges'];
 
+    expect($sketch->created_by)->toBe($user->id);
     expect($nodes)->toHaveCount(4);
     expect($edges)->toHaveCount(3);
 
@@ -93,4 +94,21 @@ test('converts 4 nodes and 3 edges of all types into a sketch', function () {
             ->toBeGreaterThanOrEqual(100.0)
             ->toBeLessThanOrEqual(700.0);
     }
+});
+
+test('uses the provided creator id without relying on the current auth context', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['created_by' => $user->id]);
+
+    $result = DetectionResult::create([
+        'filename' => 'empty.jpg',
+        'image_path' => '/tmp/empty.jpg',
+        'detection_failed' => false,
+        'detected_at' => now(),
+    ]);
+
+    $sketch = (new VueFlowConversionService)->convert($result, $project->id, $user->id);
+
+    expect($sketch->created_by)->toBe($user->id)
+        ->and($sketch->creator->is($user))->toBeTrue();
 });

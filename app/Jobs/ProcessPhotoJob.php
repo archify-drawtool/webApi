@@ -18,10 +18,15 @@ class ProcessPhotoJob implements ShouldQueue
 
     public int $timeout = 120;
 
-    public function __construct(public Photo $photo) {}
+    public ?int $createdBy = null;
+
+    public function __construct(public Photo $photo, ?int $createdBy = null)
+    {
+        $this->createdBy = $createdBy;
+    }
 
     public function handle(PhotoService $photoService): void
     {
-        $photoService->process($this->photo);
+        $photoService->process($this->photo, $this->createdBy);
     }
 }
