@@ -58,8 +58,7 @@ readonly class PhotoService
                 'detected_at' => Carbon::now(),
             ]);
 
-            $snippets = $this->extractSnippets($absolutePath, $markers);
-            $ocrTexts = $this->batchOcr($snippets);
+            $ocrTexts = $this->ocrService->recognizeTextInRegions($absolutePath, $markers);
 
             $cornerMap = [
                 CornerPosition::TopLeft,
@@ -143,56 +142,5 @@ readonly class PhotoService
         }
 
         return $this->getDetectionResult($photo->filename);
-    }
-
-    /**
-     * Extract image snippets for all markers. Entries that fail are stored as null.
-     *
-     * @param  array[]  $markers
-     * @return (string|null)[]
-     */
-    private function extractSnippets(string $absolutePath, array $markers): array
-    {
-        return array_map(function (array $marker) use ($absolutePath): ?string {
-            try {
-                return $this->imageSnippetService->extractSnippet($absolutePath, $marker);
-            } catch (Throwable $e) {
-                report($e);
-
-                return null;
-            }
-        }, $markers);
-    }
-
-    /**
-     * Send all non-null snippets to Vision in one request, returning an indexed array of
-     * OCR text strings (or null for markers whose snippet extraction failed).
-     *
-     * @param  (string|null)[]  $snippets
-     * @return (string|null)[]
-     */
-    private function batchOcr(array $snippets): array
-    {
-        $indexedSnippets = array_filter($snippets, fn (?string $s) => $s !== null);
-
-        if (empty($indexedSnippets)) {
-            return array_fill(0, count($snippets), null);
-        }
-
-        $originalIndices = array_keys($indexedSnippets);
-
-        try {
-            $results = $this->ocrService->recognizeTextBatch(array_values($indexedSnippets));
-        } catch (Throwable $e) {
-            report($e);
-            $results = [];
-        }
-
-        $ocrTexts = array_fill(0, count($snippets), null);
-        foreach ($originalIndices as $batchIndex => $originalIndex) {
-            $ocrTexts[$originalIndex] = $results[$batchIndex] ?? null;
-        }
-
-        return $ocrTexts;
     }
 }
