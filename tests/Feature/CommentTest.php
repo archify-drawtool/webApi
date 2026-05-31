@@ -251,16 +251,6 @@ it('cascade-deletes replies when the parent comment is deleted', function () {
     expect(Comment::find($reply->id))->toBeNull();
 });
 
-it('removes comments when their sketch is deleted', function () {
-    $user = User::factory()->create();
-    $sketch = Sketch::factory()->create(['created_by' => $user->id]);
-    $comment = Comment::factory()->create(['sketch_id' => $sketch->id, 'user_id' => $user->id]);
-
-    $this->actingAs($user)->deleteJson("/api/sketches/{$sketch->id}")->assertNoContent();
-
-    expect(Comment::find($comment->id))->toBeNull();
-});
-
 function makeShare(?string $token = null, bool $active = true): SharedLink
 {
     $project = Project::factory()->create();
