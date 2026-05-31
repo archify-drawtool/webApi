@@ -85,6 +85,50 @@ class SharedLinkController extends Controller
         ]);
     }
 
+    public function comments(string $token): JsonResponse
+    {
+        $sketch = $this->resolveSketch($token);
+
+        $comments = $sketch->comments()
+            ->with('author:id,name,email')
+            ->orderBy('created_at')
+            ->get();
+
+        return response()->json($comments);
+    }
+
+    public function storeComment(Request $request, string $token): JsonResponse
+    {
+        $sketch = $this->resolveSketch($token);
+
+        $validated = $request->validate([
+            'x' => ['required', 'numeric'],
+            'y' => ['required', 'numeric'],
+            'body' => ['nullable', 'string', 'max:5000'],
+            'guest_name' => ['required', 'string', 'max:80'],
+        ]);
+
+        $comment = $sketch->comments()->create([
+            'user_id' => null,
+            'guest_name' => trim($validated['guest_name']),
+            'parent_id' => null,
+            'x' => $validated['x'],
+            'y' => $validated['y'],
+            'body' => $validated['body'] ?? '',
+        ]);
+
+        return response()->json($comment, 201);
+    }
+
+    private function resolveSketch(string $token): Sketch
+    {
+        $sharedLink = SharedLink::where('token', $token)->first();
+
+        abort_if(! $sharedLink || ! $sharedLink->is_active, 404, 'Deze link is niet meer geldig.');
+
+        return $sharedLink->sketch;
+    }
+
     public function showPhoto(string $token): StreamedResponse
     {
         $sharedLink = SharedLink::where('token', $token)->first();

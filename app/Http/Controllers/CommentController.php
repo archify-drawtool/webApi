@@ -55,14 +55,22 @@ class CommentController extends Controller
             'body' => ['sometimes', 'string', 'max:5000'],
         ]);
 
+        if (array_key_exists('body', $validated) && $comment->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
         $comment->update($validated);
         $comment->load('author:id,name,email');
 
         return response()->json($comment);
     }
 
-    public function destroy(Comment $comment): Response
+    public function destroy(Request $request, Comment $comment): Response
     {
+        if ($comment->parent_id !== null && $comment->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
         $comment->delete();
 
         return response()->noContent();

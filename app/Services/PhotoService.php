@@ -128,10 +128,21 @@ readonly class PhotoService
     {
         return DetectionResult::with([
             'markers.corners',
-            'edges.edgeMarker',
+            'edges.edgeMarker.corners',
             'edges.sourceMarker',
             'edges.targetMarker',
         ])->where('filename', $filename)->first();
+    }
+
+    public function getDetectionResultBySketchId(int $sketchId): ?DetectionResult
+    {
+        $photo = Photo::where('sketch_id', $sketchId)->first();
+
+        if ($photo === null) {
+            return null;
+        }
+
+        return $this->getDetectionResult($photo->filename);
     }
 
     /**
