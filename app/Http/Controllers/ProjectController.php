@@ -26,7 +26,14 @@ class ProjectController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255', 'unique:projects,title'],
+            'title' => [
+                'required', 'string', 'max:255',
+                function ($_, $value, $fail) {
+                    if (Project::query()->where(DB::raw('LOWER(title)'), strtolower($value))->exists()) {
+                        $fail('Een project met deze naam bestaat al.');
+                    }
+                },
+            ],
         ]);
 
         $project = Project::create([
