@@ -20,6 +20,8 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/shared/node-types', [SharedLinkController::class, 'nodesTypes']);
 Route::get('/shared/{token}', [SharedLinkController::class, 'show']);
 Route::get('/shared/{token}/photo', [SharedLinkController::class, 'showPhoto']);
+Route::get('/shared/{token}/comments', [SharedLinkController::class, 'comments']);
+Route::post('/shared/{token}/comments', [SharedLinkController::class, 'storeComment']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
