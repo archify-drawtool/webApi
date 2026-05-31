@@ -10,9 +10,6 @@ use Illuminate\Support\Facades\DB;
 
 class ProjectController extends Controller
 {
-    /**
-     * Get all projects with creator info.
-     */
     public function index(): JsonResponse
     {
         $projects = Project::with('creator:id,name,email')->get();
@@ -20,9 +17,6 @@ class ProjectController extends Controller
         return response()->json($projects);
     }
 
-    /**
-     * Create a new project for the authenticated user.
-     */
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -47,9 +41,19 @@ class ProjectController extends Controller
         );
     }
 
-    /**
-     * Return a single project with creator info.
-     */
+    public function rename(Request $request, Project $project): JsonResponse
+    {
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255', "unique:projects,title,{$project->id}"],
+        ], [
+            'title.unique' => 'Een project met deze naam bestaat al.',
+        ]);
+
+        $project->update(['title' => $validated['title']]);
+
+        return response()->json($project->load('creator:id,name,email'));
+    }
+
     public function show(Project $project): JsonResponse
     {
         return response()->json(
