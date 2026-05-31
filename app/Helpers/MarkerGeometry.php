@@ -106,6 +106,38 @@ final class MarkerGeometry
     }
 
     /**
+     * Test whether a point (px, py) lies inside a rotated rectangle defined by its four corners.
+     *
+     * $corners must be in TL→TR→BR→BL order, as returned by hitboxCorners().
+     * Uses two dot-product projections onto the rectangle's own axes — no AABB needed.
+     */
+    public static function pointInHitbox(float $px, float $py, array $corners): bool
+    {
+        $tl = $corners[0];
+        $tr = $corners[1];
+        $bl = $corners[3];
+
+        $ux = $tr['x'] - $tl['x'];
+        $uy = $tr['y'] - $tl['y'];
+        $vx = $bl['x'] - $tl['x'];
+        $vy = $bl['y'] - $tl['y'];
+        $dx = $px - $tl['x'];
+        $dy = $py - $tl['y'];
+
+        $dotUU = $ux * $ux + $uy * $uy;
+        $dotVV = $vx * $vx + $vy * $vy;
+
+        if ($dotUU === 0.0 || $dotVV === 0.0) {
+            return false;
+        }
+
+        $projU = ($dx * $ux + $dy * $uy) / $dotUU;
+        $projV = ($dx * $vx + $dy * $vy) / $dotVV;
+
+        return $projU >= 0.0 && $projU <= 1.0 && $projV >= 0.0 && $projV <= 1.0;
+    }
+
+    /**
      * Look up and validate the OCR hitbox for the given marker ID.
      *
      * @throws InvalidArgumentException When the hitbox boundaries cross each other.
