@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Project;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 
 class ProjectController extends Controller
 {
@@ -46,5 +48,19 @@ class ProjectController extends Controller
         return response()->json(
             $project->load('creator:id,name,email')
         );
+    }
+
+    public function destroy(Project $project): Response
+    {
+        DB::transaction(function () use ($project) {
+            foreach ($project->sketches as $sketch) {
+                $sketch->comments()->delete();
+                $sketch->delete();
+            }
+
+            $project->delete();
+        });
+
+        return response()->noContent();
     }
 }
