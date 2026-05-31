@@ -20,6 +20,8 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/shared/node-types', [SharedLinkController::class, 'nodesTypes']);
 Route::get('/shared/{token}', [SharedLinkController::class, 'show']);
 Route::get('/shared/{token}/photo', [SharedLinkController::class, 'showPhoto']);
+Route::get('/shared/{token}/comments', [SharedLinkController::class, 'comments']);
+Route::post('/shared/{token}/comments', [SharedLinkController::class, 'storeComment']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
@@ -29,6 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/projects', [ProjectController::class, 'index']);
     Route::post('/projects', [ProjectController::class, 'store']);
     Route::get('/projects/{project}', [ProjectController::class, 'show']);
+    Route::delete('/projects/{project}', [ProjectController::class, 'destroy']);
     Route::post('/photos/upload', [PhotoController::class, 'upload']);
     Route::get('/photos/{photo}/status', [PhotoController::class, 'status']);
     Route::get('/photos/{sketch_id}/aruco', [PhotoController::class, 'getArucoResults']);

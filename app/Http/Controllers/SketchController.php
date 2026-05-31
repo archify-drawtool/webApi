@@ -169,6 +169,7 @@ class SketchController extends Controller
     {
         abort_if($sketch->created_by !== $request->user()->id, 403);
 
+        $sketch->comments()->delete();
         $sketch->delete();
 
         return response()->noContent();
