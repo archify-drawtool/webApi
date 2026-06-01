@@ -23,8 +23,21 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
-        'microsoft_id'
+        'microsoft_id',
+        'show_background_dots',
     ];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'show_background_dots' => 'boolean',
+        ];
+    }
 
     /**
      * Projects that were created by this user

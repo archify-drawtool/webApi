@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\NodeTypeController;
 use App\Http\Controllers\PhotoController;
 use App\Http\Controllers\ProjectController;
@@ -19,25 +20,40 @@ Route::post('/auth/microsoft', [AuthController::class, 'microsoftLogin']);
 
 Route::get('/shared/node-types', [SharedLinkController::class, 'nodesTypes']);
 Route::get('/shared/{token}', [SharedLinkController::class, 'show']);
+Route::get('/shared/{token}/photo', [SharedLinkController::class, 'showPhoto']);
+Route::get('/shared/{token}/comments', [SharedLinkController::class, 'comments']);
+Route::post('/shared/{token}/comments', [SharedLinkController::class, 'storeComment']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/user', [AuthController::class, 'user']);
+    Route::patch('/user', [AuthController::class, 'updatePreferences']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/node-types', [NodeTypeController::class, 'index']);
     Route::get('/projects', [ProjectController::class, 'index']);
     Route::post('/projects', [ProjectController::class, 'store']);
     Route::get('/projects/{project}', [ProjectController::class, 'show']);
+    Route::patch('/projects/{project}', [ProjectController::class, 'rename']);
+    Route::delete('/projects/{project}', [ProjectController::class, 'destroy']);
     Route::post('/photos/upload', [PhotoController::class, 'upload']);
-    Route::get('/photos/{filename}/aruco', [PhotoController::class, 'getArucoResults']);
+    Route::get('/photos/{photo}/status', [PhotoController::class, 'status']);
+    Route::get('/photos/{sketch_id}/aruco', [PhotoController::class, 'getArucoResults']);
     Route::get('/sketches', [SketchController::class, 'userIndex']);
     Route::post('/sketches', [SketchController::class, 'store']);
     Route::get('/sketches/{sketch}', [SketchController::class, 'show']);
+    Route::get('/sketches/{sketch}/photo', [SketchController::class, 'showPhoto']);
     Route::put('/sketches/{sketch}', [SketchController::class, 'updateCanvas']);
     Route::patch('/sketches/{sketch}/rename', [SketchController::class, 'renameSketch']);
     Route::delete('/sketches/{sketch}', [SketchController::class, 'destroySketch']);
     Route::get('/sketches/{sketch}/export/mermaid', [SketchController::class, 'exportMermaidSketch']);
+    Route::get('/sketches/{sketch}/export/drawio', [SketchController::class, 'exportDrawioSketch']);
     Route::get('/projects/{project}/sketches', [SketchController::class, 'index']);
     Route::post('/export/mermaid', [SketchController::class, 'exportMermaidFromState']);
+    Route::post('/export/drawio', [SketchController::class, 'exportDrawioFromState']);
     Route::get('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'status']);
     Route::post('/projects/{project}/sketches/{sketch}/share', [SharedLinkController::class, 'toggle']);
+    Route::get('/sketches/{sketch}/comments', [CommentController::class, 'index']);
+    Route::post('/sketches/{sketch}/comments', [CommentController::class, 'store']);
+    Route::patch('/comments/{comment}', [CommentController::class, 'update']);
+    Route::delete('/comments/{comment}', [CommentController::class, 'destroy']);
 });

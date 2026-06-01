@@ -39,5 +39,16 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged out']);
     }
+
+    public function updatePreferences(Request $request)
+    {
+        $validated = $request->validate([
+            'show_background_dots' => 'required|boolean',
+        ]);
+
+        $request->user()->update($validated);
+
+        return response()->json($request->user()->fresh());
+    }
 }
 

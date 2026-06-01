@@ -7,7 +7,9 @@ use App\Models\SharedLink;
 use App\Models\Sketch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SharedLinkController extends Controller
 {
@@ -79,6 +81,65 @@ class SharedLinkController extends Controller
             'title' => $sharedLink->sketch->title,
             'project_title' => $sharedLink->sketch->project->title,
             'canvas_state' => $sharedLink->sketch->canvas_state,
+            'has_photo' => $sharedLink->sketch->photo()->whereNotNull('path')->exists(),
         ]);
+    }
+
+    public function comments(string $token): JsonResponse
+    {
+        $sketch = $this->resolveSketch($token);
+
+        $comments = $sketch->comments()
+            ->with('author:id,name,email')
+            ->orderBy('created_at')
+            ->get();
+
+        return response()->json($comments);
+    }
+
+    public function storeComment(Request $request, string $token): JsonResponse
+    {
+        $sketch = $this->resolveSketch($token);
+
+        $validated = $request->validate([
+            'x' => ['required', 'numeric'],
+            'y' => ['required', 'numeric'],
+            'body' => ['nullable', 'string', 'max:5000'],
+            'guest_name' => ['required', 'string', 'max:80'],
+        ]);
+
+        $comment = $sketch->comments()->create([
+            'user_id' => null,
+            'guest_name' => trim($validated['guest_name']),
+            'parent_id' => null,
+            'x' => $validated['x'],
+            'y' => $validated['y'],
+            'body' => $validated['body'] ?? '',
+        ]);
+
+        return response()->json($comment, 201);
+    }
+
+    private function resolveSketch(string $token): Sketch
+    {
+        $sharedLink = SharedLink::where('token', $token)->first();
+
+        abort_if(! $sharedLink || ! $sharedLink->is_active, 404, 'Deze link is niet meer geldig.');
+
+        return $sharedLink->sketch;
+    }
+
+    public function showPhoto(string $token): StreamedResponse
+    {
+        $sharedLink = SharedLink::where('token', $token)->first();
+
+        abort_if(! $sharedLink || ! $sharedLink->is_active, 404, 'Deze link is niet meer geldig.');
+
+        $photo = $sharedLink->sketch->photo()->whereNotNull('path')->first();
+
+        abort_if($photo === null, 404);
+        abort_unless(Storage::disk('local')->exists($photo->path), 404);
+
+        return Storage::disk('local')->response($photo->path);
     }
 }
