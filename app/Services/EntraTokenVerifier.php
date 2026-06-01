@@ -18,9 +18,10 @@ class EntraTokenVerifier
         // Microsoft's JWKS mist soms het 'alg' veld — firebase/php-jwt vereist dit
         // RS256 is het standaard algoritme voor Microsoft Entra ID tokens
         $jwks['keys'] = array_map(function ($key) {
-            if (!isset($key['alg'])) {
+            if (! isset($key['alg'])) {
                 $key['alg'] = 'RS256';
             }
+
             return $key;
         }, $jwks['keys'] ?? []);
 
@@ -35,7 +36,7 @@ class EntraTokenVerifier
         // We controleren of de issuer het verwachte patroon volgt.
         $iss = $payload['iss'] ?? null;
         $issuerPattern = '/^https:\/\/login\.microsoftonline\.com\/[a-f0-9\-]+\/v2\.0$/';
-        if (!$iss || !preg_match($issuerPattern, $iss)) {
+        if (! $iss || ! preg_match($issuerPattern, $iss)) {
             throw new \Exception('Invalid token issuer');
         }
 

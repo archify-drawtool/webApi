@@ -23,6 +23,4 @@ class UserFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
         ];
     }
-
-
 }
