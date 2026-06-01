@@ -31,7 +31,11 @@ class EntraTokenVerifier
         $keys = JWK::parseKeySet($jwks);
         $payload = (array) JWT::decode($idToken, $keys);
 
-        if (($payload['iss'] ?? null) !== config('entra.issuer')) {
+        // Bij multi-tenant (common) is de issuer dynamisch per tenant.
+        // We controleren of de issuer het verwachte patroon volgt.
+        $iss = $payload['iss'] ?? null;
+        $issuerPattern = '/^https:\/\/login\.microsoftonline\.com\/[a-f0-9\-]+\/v2\.0$/';
+        if (!$iss || !preg_match($issuerPattern, $iss)) {
             throw new \Exception('Invalid token issuer');
         }
 
