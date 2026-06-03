@@ -30,7 +30,7 @@ class VueFlowConversionService
                 $nodeType = $nodeTypes->firstWhere('aruco', $marker->marker_id);
                 $position = MarkerGeometry::markerHitboxCenter($marker);
 
-                $size = MarkerGeometry::markerSize($marker->corners);
+                $size = MarkerGeometry::markerEffectiveSize($marker);
                 if ($size > 0) {
                     $markerSizes[] = $size;
                 }
@@ -94,7 +94,7 @@ class VueFlowConversionService
         $minX = min($xs);
         $minY = min($ys);
 
-        $scaleDenominator = (float) config('canvas.scale_denominator', 25.0);
+        $scaleDenominator = (float) config('canvas.scale_denominator', 75.0);
         $scale = $avgMarkerSize > 0 ? $scaleDenominator / $avgMarkerSize : 1.0;
 
         return array_map(function (array $node) use ($minX, $minY, $scale) {
