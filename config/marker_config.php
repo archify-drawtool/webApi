@@ -21,19 +21,14 @@
  * The 'default' key is used as fallback when a marker ID is not listed below.
  */
 return [
-    'default' => ['type' => 'node', 'hitbox' => ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0]],
+    'default' => ['type' => 'node', 'hitbox' => ['xPos' => 0.4, 'xNeg' => 4.8, 'yPos' => 0.4, 'yNeg' => 5.4]],
 
     // --- Node markers ---
-    1 => ['type' => 'node', 'hitbox' => ['xPos' => 1.6, 'xNeg' => 1.6, 'yPos' => 1.6, 'yNeg' => 1.6]],
-    2 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.0, 'yPos' => 0.0, 'yNeg' => 4.0]],
-    3 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.0, 'yPos' => 0.0, 'yNeg' => 4.0]],
-    4 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.2, 'yPos' => 3.2, 'yNeg' => 0.0]],
-    5 => ['type' => 'node', 'hitbox' => ['xPos' => 1.6, 'xNeg' => 1.6, 'yPos' => 1.4, 'yNeg' => 2.0]],
-    6 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 5.0, 'yPos' => 0.0, 'yNeg' => 2.0]],
+
     // --- Edge markers ---
-    21 => ['type' => 'directionless', 'hitbox' => ['xPos' => 2.7, 'xNeg' => 2.7, 'yPos' => 0.0, 'yNeg' => 0.0]],
-    22 => ['type' => 'monodirectional', 'hitbox' => ['xPos' => 2.7, 'xNeg' => 2.7, 'yPos' => 0.0, 'yNeg' => 0.0]],
-    23 => ['type' => 'bidirectional', 'hitbox' => ['xPos' => 2.7, 'xNeg' => 2.7, 'yPos' => 0.0, 'yNeg' => 0.0]],
+    21 => ['type' => 'directionless', 'hitbox' => ['xPos' => 2.7, 'xNeg' => 2.7, 'yPos' => 0.8, 'yNeg' => 0.0]],
+    22 => ['type' => 'monodirectional', 'hitbox' => ['xPos' => 2.7, 'xNeg' => 2.7, 'yPos' => 0.8, 'yNeg' => 0.0]],
+    23 => ['type' => 'bidirectional', 'hitbox' => ['xPos' => 2.7, 'xNeg' => 2.7, 'yPos' => 0.8, 'yNeg' => 0.0]],
     // --- Notities ---
     41 => ['type' => 'node', 'hitbox' => ['xPos' => 3.2, 'xNeg' => 0.0, 'yPos' => 0.0, 'yNeg' => 3.2]],
 ];
