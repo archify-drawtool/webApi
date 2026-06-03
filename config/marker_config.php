@@ -18,11 +18,13 @@
  * The default (2, 2, 2, 2) reproduces the old 5× symmetric behaviour:
  *   snippetW = markerW × (1 + 2 + 2) = markerW × 5
  *
- * Default when marker ID is absent: type = 'node', hitbox = [2.0, 2.0, 2.0, 2.0].
+ * The 'default' key is used as fallback when a marker ID is not listed below.
  */
 return [
+    'default' => ['type' => 'node', 'hitbox' => ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0]],
+
     // --- Node markers ---
-    1 => ['type' => 'node', 'hitbox' => ['xPos' => 1.6, 'xNeg' => 1.6, 'yPos' => 1.6, 'yNeg' => 1.6]], // Standaard
+    1 => ['type' => 'node', 'hitbox' => ['xPos' => 1.6, 'xNeg' => 1.6, 'yPos' => 1.6, 'yNeg' => 1.6]],
     2 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.0, 'yPos' => 0.0, 'yNeg' => 4.0]],
     3 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.0, 'yPos' => 0.0, 'yNeg' => 4.0]],
     4 => ['type' => 'node', 'hitbox' => ['xPos' => 0.0, 'xNeg' => 3.2, 'yPos' => 3.2, 'yNeg' => 0.0]],
