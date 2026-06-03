@@ -6,6 +6,7 @@ use App\Helpers\MarkerGeometry;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class OcrService
@@ -60,7 +61,7 @@ class OcrService
     private const float OCR_CONFIDENCE_THRESHOLD = 0.5;
 
     /**
-     * @return array[] Normalized word entries: description, boundingPoly.vertices, confidence
+     * @return array[] Word entries: description, vertices (4-point boundingBox), confidence
      */
     private function recognizeFullImage(string $imagePath, array $markers): array
     {
@@ -84,6 +85,8 @@ class OcrService
             throw new HttpException(502, 'Google Cloud Vision API error: '.$e->response->status());
         }
 
+        Log::debug('OCR raw response', ['json' => $response->body()]);
+
         $pages = $response->json('responses.0.fullTextAnnotation.pages') ?? [];
         $words = [];
 
@@ -91,14 +94,25 @@ class OcrService
             foreach ($page['blocks'] ?? [] as $block) {
                 foreach ($block['paragraphs'] ?? [] as $paragraph) {
                     foreach ($paragraph['words'] ?? [] as $word) {
+                        $confidence = (float) ($word['confidence'] ?? 0.0);
+                        if ($confidence < self::OCR_CONFIDENCE_THRESHOLD) {
+                            continue;
+                        }
+
+                        $vertices = $word['boundingBox']['vertices'] ?? [];
                         $text = implode('', array_map(
                             fn (array $symbol) => $symbol['text'] ?? '',
                             $word['symbols'] ?? []
                         ));
+
+                        if ($text === '' || empty($vertices)) {
+                            continue;
+                        }
+
                         $words[] = [
                             'description' => $text,
-                            'boundingPoly' => ['vertices' => $word['boundingBox']['vertices'] ?? []],
-                            'confidence' => (float) ($word['confidence'] ?? 0.0),
+                            'vertices'    => $vertices,
+                            'confidence'  => $confidence,
                         ];
                     }
                 }
@@ -109,11 +123,11 @@ class OcrService
     }
 
     /**
-     * @param  array[]  $textAnnotations  Word-level Vision blocks (description + boundingPoly.vertices)
+     * @param  array[]  $words    Word entries from recognizeFullImage
      * @param  array[]  $markers  Raw marker arrays from ArucoService
      * @return string[]
      */
-    private function matchTextToMarkers(array $textAnnotations, array $markers): array
+    private function matchTextToMarkers(array $words, array $markers): array
     {
         $results = array_fill(0, count($markers), '');
 
@@ -130,41 +144,90 @@ class OcrService
             $hitbox = MarkerGeometry::resolveHitbox((int) $marker['id']);
             $hitboxCorners = MarkerGeometry::hitboxCorners($cx, $cy, $width, $hitbox, (float) $marker['rotation']);
 
-            $rotation = (float) $marker['rotation'];
-            $cosR = cos($rotation);
-            $sinR = sin($rotation);
+            $rRad = deg2rad((float) $marker['rotation']);
+            $cosR = cos($rRad);
+            $sinR = sin($rRad);
 
-            $words = [];
-            foreach ($textAnnotations as $block) {
-                if (($block['confidence'] ?? 0.0) < self::OCR_CONFIDENCE_THRESHOLD) {
-                    continue;
-                }
-
-                $vertices = $block['boundingPoly']['vertices'] ?? [];
-                if (empty($vertices)) {
-                    continue;
-                }
-
+            $matched = [];
+            foreach ($words as $word) {
+                $vertices = $word['vertices'];
                 $centroidX = array_sum(array_column($vertices, 'x')) / count($vertices);
                 $centroidY = array_sum(array_column($vertices, 'y')) / count($vertices);
 
-                if (MarkerGeometry::pointInHitbox($centroidX, $centroidY, $hitboxCorners)) {
-                    $dx = $centroidX - $cx;
-                    $dy = $centroidY - $cy;
-                    $words[] = [
-                        'text' => $block['description'],
-                        'localY' => -$sinR * $dx + $cosR * $dy,
-                        'localX' => $cosR * $dx + $sinR * $dy,
-                    ];
+                if (!MarkerGeometry::pointInHitbox($centroidX, $centroidY, $hitboxCorners)) {
+                    continue;
                 }
+
+                $localYs = array_map(fn ($v) => -$sinR * (($v['x'] ?? 0) - $cx) + $cosR * (($v['y'] ?? 0) - $cy), $vertices);
+                $localXs = array_map(fn ($v) =>  $cosR * (($v['x'] ?? 0) - $cx) + $sinR * (($v['y'] ?? 0) - $cy), $vertices);
+
+                $matched[] = [
+                    'text'   => $word['description'],
+                    'lineY'  => (min($localYs) + max($localYs)) / 2.0,
+                    'wordH'  => max($localYs) - min($localYs),
+                    'startX' => min($localXs),
+                ];
             }
 
-            usort($words, fn ($a, $b) => $a['localY'] <=> $b['localY'] ?: $a['localX'] <=> $b['localX']);
+            $result = $this->orderWordsIntoLines($matched, $width);
 
-            $results[$index] = implode(' ', array_column($words, 'text'));
+            Log::debug('OCR marker match', [
+                'marker_id'  => $marker['id'],
+                'word_count' => count($matched),
+                'words'      => array_map(fn ($w) => ['text' => $w['text'], 'lineY' => round($w['lineY'], 1), 'startX' => round($w['startX'], 1)], $matched),
+                'result'     => $result,
+            ]);
+
+            $results[$index] = $result;
         }
 
         return $results;
+    }
+
+    /**
+     * Group words into lines by Y proximity, then sort lines top-to-bottom and words left-to-right.
+     *
+     * @param  array[]  $words  Each entry: text, lineY, wordH, startX (all in marker-local frame)
+     */
+    private function orderWordsIntoLines(array $words, float $markerWidth): string
+    {
+        if (empty($words)) {
+            return '';
+        }
+
+        usort($words, fn ($a, $b) => $a['lineY'] <=> $b['lineY'] ?: $a['startX'] <=> $b['startX']);
+
+        $lines = [];
+        foreach ($words as $word) {
+            $threshold = max($word['wordH'] * 0.6, $markerWidth * 0.1);
+            $placed = false;
+            foreach ($lines as &$line) {
+                if (abs($word['lineY'] - $line['centerY']) <= $threshold) {
+                    $line['words'][] = $word;
+                    $line['centerY'] = array_sum(array_column($line['words'], 'lineY')) / count($line['words']);
+                    $placed = true;
+                    break;
+                }
+            }
+            unset($line);
+
+            if (!$placed) {
+                $lines[] = ['centerY' => $word['lineY'], 'words' => [$word]];
+            }
+        }
+
+        usort($lines, fn ($a, $b) => $a['centerY'] <=> $b['centerY']);
+
+        $ordered = [];
+        foreach ($lines as $line) {
+            $lineWords = $line['words'];
+            usort($lineWords, fn ($a, $b) => $a['startX'] <=> $b['startX']);
+            foreach ($lineWords as $w) {
+                $ordered[] = $w['text'];
+            }
+        }
+
+        return implode(' ', $ordered);
     }
 
     /**
