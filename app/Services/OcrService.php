@@ -57,8 +57,10 @@ class OcrService
         return $this->matchTextToMarkers($textAnnotations, $markers);
     }
 
+    private const float OCR_CONFIDENCE_THRESHOLD = 0.5;
+
     /**
-     * @return array[] textAnnotations[1..] from Vision (word-level blocks with boundingPoly)
+     * @return array[] Normalized word entries: description, boundingPoly.vertices, confidence
      */
     private function recognizeFullImage(string $imagePath, array $markers): array
     {
@@ -70,7 +72,10 @@ class OcrService
                 'requests' => [[
                     'image' => ['content' => $base64],
                     'features' => [['type' => 'DOCUMENT_TEXT_DETECTION']],
-                    'imageContext' => ['languageHints' => ['en', 'nl']],
+                    'imageContext' => [
+                        'languageHints' => ['en', 'nl'],
+                        'textDetectionParams' => ['enableTextDetectionConfidenceScore' => true],
+                    ],
                 ]],
             ]);
 
@@ -79,9 +84,28 @@ class OcrService
             throw new HttpException(502, 'Google Cloud Vision API error: '.$e->response->status());
         }
 
-        $annotations = $response->json('responses.0.textAnnotations') ?? [];
+        $pages = $response->json('responses.0.fullTextAnnotation.pages') ?? [];
+        $words = [];
 
-        return array_slice($annotations, 1);
+        foreach ($pages as $page) {
+            foreach ($page['blocks'] ?? [] as $block) {
+                foreach ($block['paragraphs'] ?? [] as $paragraph) {
+                    foreach ($paragraph['words'] ?? [] as $word) {
+                        $text = implode('', array_map(
+                            fn (array $symbol) => $symbol['text'] ?? '',
+                            $word['symbols'] ?? []
+                        ));
+                        $words[] = [
+                            'description' => $text,
+                            'boundingPoly' => ['vertices' => $word['boundingBox']['vertices'] ?? []],
+                            'confidence' => (float) ($word['confidence'] ?? 0.0),
+                        ];
+                    }
+                }
+            }
+        }
+
+        return $words;
     }
 
     /**
@@ -106,8 +130,16 @@ class OcrService
             $hitbox = MarkerGeometry::resolveHitbox((int) $marker['id']);
             $hitboxCorners = MarkerGeometry::hitboxCorners($cx, $cy, $width, $hitbox, (float) $marker['rotation']);
 
+            $rotation = (float) $marker['rotation'];
+            $cosR = cos($rotation);
+            $sinR = sin($rotation);
+
             $words = [];
             foreach ($textAnnotations as $block) {
+                if (($block['confidence'] ?? 0.0) < self::OCR_CONFIDENCE_THRESHOLD) {
+                    continue;
+                }
+
                 $vertices = $block['boundingPoly']['vertices'] ?? [];
                 if (empty($vertices)) {
                     continue;
@@ -117,11 +149,19 @@ class OcrService
                 $centroidY = array_sum(array_column($vertices, 'y')) / count($vertices);
 
                 if (MarkerGeometry::pointInHitbox($centroidX, $centroidY, $hitboxCorners)) {
-                    $words[] = $block['description'];
+                    $dx = $centroidX - $cx;
+                    $dy = $centroidY - $cy;
+                    $words[] = [
+                        'text' => $block['description'],
+                        'localY' => -$sinR * $dx + $cosR * $dy,
+                        'localX' => $cosR * $dx + $sinR * $dy,
+                    ];
                 }
             }
 
-            $results[$index] = implode(' ', $words);
+            usort($words, fn ($a, $b) => $a['localY'] <=> $b['localY'] ?: $a['localX'] <=> $b['localX']);
+
+            $results[$index] = implode(' ', array_column($words, 'text'));
         }
 
         return $results;
