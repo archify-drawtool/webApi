@@ -23,11 +23,17 @@ class VueFlowConversionService
         $markerConfig = config('marker_config', []);
         $nodeTypes = collect(config('node_types'));
 
+        $markerSizes = [];
         $nodes = $detectionResult->markers
             ->filter(fn ($marker) => MarkerType::fromConfig($marker->marker_id, $markerConfig) === MarkerType::Node)
-            ->map(function ($marker) use ($nodeTypes) {
+            ->map(function ($marker) use ($nodeTypes, &$markerSizes) {
                 $nodeType = $nodeTypes->firstWhere('aruco', $marker->marker_id);
                 $position = MarkerGeometry::markerHitboxCenter($marker);
+
+                $size = MarkerGeometry::markerSize($marker->corners);
+                if ($size > 0) {
+                    $markerSizes[] = $size;
+                }
 
                 return [
                     'id' => 'node-'.$marker->id,
@@ -42,7 +48,11 @@ class VueFlowConversionService
             ->values()
             ->all();
 
-        $nodes = $this->normalizePositions($nodes);
+        $avgMarkerSize = count($markerSizes) > 0
+            ? array_sum($markerSizes) / count($markerSizes)
+            : 0.0;
+
+        $nodes = $this->normalizePositions($nodes, $avgMarkerSize);
 
         $nodePositions = collect($nodes)
             ->keyBy(fn ($n) => (int) str_replace('node-', '', $n['id']))
@@ -62,15 +72,18 @@ class VueFlowConversionService
     }
 
     /**
-     * Scale all node positions uniformly so they fit within 1400×800,
-     * then offset them so the bounding box is centered on (700, 400).
+     * Shift node positions so the bounding box starts at (0, 0), then scale
+     * uniformly so that one marker-width maps to 150 canvas units. This keeps
+     * relative spacing intact: close-up shots produce compact layouts while
+     * wide shots produce spacious ones — without stretching to fixed bounds.
      *
      * @param  array[]  $nodes
+     * @param  float  $avgMarkerSize  average marker side length in pixels
      * @return array[]
      */
-    private function normalizePositions(array $nodes): array
+    private function normalizePositions(array $nodes, float $avgMarkerSize): array
     {
-        if (count($nodes) < 2) {
+        if (count($nodes) < 1) {
             return $nodes;
         }
 
@@ -79,54 +92,14 @@ class VueFlowConversionService
         $ys = array_column($positions, 'y');
 
         $minX = min($xs);
-        $maxX = max($xs);
         $minY = min($ys);
-        $maxY = max($ys);
 
-        $rangeX = $maxX - $minX;
-        $rangeY = $maxY - $minY;
+        $scaleDenominator = (float) config('canvas.scale_denominator', 25.0);
+        $scale = $avgMarkerSize > 0 ? $scaleDenominator / $avgMarkerSize : 1.0;
 
-        if ($rangeX == 0 && $rangeY == 0) {
-            return $nodes;
-        }
-
-        // Rotate portrait layouts (taller than wide) 90° clockwise.
-        if ($rangeY > $rangeX) {
-            $origMaxX = $maxX;
-            $nodes = array_map(function (array $node) use ($origMaxX) {
-                [$node['position']['x'], $node['position']['y']] = [
-                    $node['position']['y'],
-                    $origMaxX - $node['position']['x'],
-                ];
-
-                return $node;
-            }, $nodes);
-            // After clockwise rotation: new x = old y, new y = origMaxX - old x
-            [$minX, $minY] = [$minY, 0];
-            [$rangeX, $rangeY] = [$rangeY, $rangeX];
-        }
-
-        $canvasMinX = (float) config('canvas.min_x', 100.0);
-        $canvasMaxX = (float) config('canvas.max_x', 1300.0);
-        $canvasMinY = (float) config('canvas.min_y', 100.0);
-        $canvasMaxY = (float) config('canvas.max_y', 700.0);
-
-        $canvasWidth = $canvasMaxX - $canvasMinX;
-        $canvasHeight = $canvasMaxY - $canvasMinY;
-
-        $scale = min(
-            $rangeX > 0 ? $canvasWidth / $rangeX : PHP_FLOAT_MAX,
-            $rangeY > 0 ? $canvasHeight / $rangeY : PHP_FLOAT_MAX,
-        );
-
-        // After scaling, the bounding box spans [0, rangeX*scale] × [0, rangeY*scale].
-        // Offset so it is centered within the canvas bounds.
-        $offsetX = $canvasMinX + ($canvasWidth - $rangeX * $scale) / 2;
-        $offsetY = $canvasMinY + ($canvasHeight - $rangeY * $scale) / 2;
-
-        return array_map(function (array $node) use ($minX, $minY, $scale, $offsetX, $offsetY) {
-            $node['position']['x'] = ($node['position']['x'] - $minX) * $scale + $offsetX;
-            $node['position']['y'] = ($node['position']['y'] - $minY) * $scale + $offsetY;
+        return array_map(function (array $node) use ($minX, $minY, $scale) {
+            $node['position']['x'] = ($node['position']['x'] - $minX) * $scale;
+            $node['position']['y'] = ($node['position']['y'] - $minY) * $scale;
 
             return $node;
         }, $nodes);

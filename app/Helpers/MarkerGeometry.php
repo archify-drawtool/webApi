@@ -32,6 +32,19 @@ final class MarkerGeometry
     }
 
     /**
+     * Average of a marker's width and height in pixels.
+     * Returns 0.0 when the required corners are missing.
+     *
+     * @param  iterable  $corners  ArucoMarkerCorner models with position, x, y.
+     */
+    public static function markerSize(iterable $corners): float
+    {
+        $dims = self::markerDimensions($corners);
+
+        return ($dims['width'] + $dims['height']) / 2.0;
+    }
+
+    /**
      * World-coordinate center of the OCR hitbox area surrounding a marker.
      *
      * Hitbox offsets are in the marker's local frame (xPos = forward/right, xNeg = back/left).
