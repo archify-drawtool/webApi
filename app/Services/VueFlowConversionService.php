@@ -7,11 +7,10 @@ use App\Helpers\MarkerGeometry;
 use App\Models\DetectedEdge;
 use App\Models\DetectionResult;
 use App\Models\Sketch;
-use Illuminate\Support\Facades\Auth;
 
 class VueFlowConversionService
 {
-    public function convert(DetectionResult $detectionResult, int $projectId): Sketch
+    public function convert(DetectionResult $detectionResult, ?int $projectId, ?int $userId = null): Sketch
     {
         $detectionResult->loadMissing([
             'markers.corners',
@@ -66,7 +65,7 @@ class VueFlowConversionService
         return Sketch::create([
             'title' => 'Foto-schets '.now()->format('d-m-Y'),
             'project_id' => $projectId,
-            'created_by' => Auth::id(),
+            'created_by' => $userId,
             'canvas_state' => ['nodes' => $nodes, 'edges' => $edges],
         ]);
     }
