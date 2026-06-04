@@ -22,13 +22,13 @@ class PhotoController extends Controller
         $request->validate([
             'photo' => 'required|image|max:10240',
             'project_id' => [
-                'required',
+                'nullable',
                 'integer',
                 Rule::exists('projects', 'id'),
             ],
         ]);
 
-        $projectId = $request->integer('project_id');
+        $projectId = $request->filled('project_id') ? $request->integer('project_id') : null;
         $photo = $this->photoService->store($request->file('photo'), $projectId);
 
         return response()->json([
