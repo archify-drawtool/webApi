@@ -2,57 +2,43 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
+use App\Services\EntraTokenVerifier;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\ValidationException;
-use Prometheus\CollectorRegistry;
 
 class AuthController extends Controller
 {
-    public function __construct(private CollectorRegistry $registry) {}
-
-    public function login(Request $request)
+    public function microsoftLogin(Request $request, EntraTokenVerifier $verifier)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|string',
-        ]);
+        $request->validate(['id_token' => 'required|string']);
 
-        if (! Auth::attempt($request->only('email', 'password'))) {
-            // Mislukte login
-            $this->registry
-                ->getOrRegisterCounter('app', 'login_attempts_total', 'Aantal inlogpogingen', ['status'])
-                ->inc(['failed']);
-
-            throw ValidationException::withMessages([
-                'email' => ['De opgegeven credentials zijn onjuist.'],
-            ]);
+        try {
+            $claims = $verifier->verify($request->id_token);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Invalid Microsoft token'], 401);
         }
 
-        // Succesvolle login
-        $this->registry
-            ->getOrRegisterCounter('app', 'login_attempts_total', 'Aantal inlogpogingen', ['status'])
-            ->inc(['success']);
+        // Zoek of maak user aan op microsoft_id (= 'oid' claim)
+        $user = User::firstOrNew(['microsoft_id' => $claims['oid']]);
+        $user->email = $claims['preferred_username'] ?? $claims['email'];
+        $user->name = $claims['name'] ?? $user->email;
+        $user->save();
 
-        $user = Auth::user();
-        $token = $user->createToken('api-token')->plainTextToken;
+        $token = $user->createToken('archify')->plainTextToken;
 
-        return response()->json([
-            'user' => $user,
-            'token' => $token,
-        ]);
+        return response()->json(['token' => $token, 'user' => $user]);
+    }
+
+    public function me(Request $request)
+    {
+        return response()->json($request->user());
     }
 
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json(['message' => 'Uitgelogd']);
-    }
-
-    public function user(Request $request)
-    {
-        return response()->json($request->user());
+        return response()->json(['message' => 'Logged out']);
     }
 
     public function updatePreferences(Request $request)
