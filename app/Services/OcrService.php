@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Helpers\MarkerGeometry;
 use Illuminate\Http\Client\RequestException;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -12,16 +11,6 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class OcrService
 {
     private const string VISION_API_URL = 'https://vision.googleapis.com/v1/images:annotate';
-
-    public function recognizeText(UploadedFile $photo): string
-    {
-        return $this->callVisionApi([base64_encode(file_get_contents($photo->getRealPath()))])[0];
-    }
-
-    public function recognizeTextFromImageData(string $imageData): string
-    {
-        return $this->callVisionApi([base64_encode($imageData)])[0];
-    }
 
     /**
      * Send multiple images to the Vision API in a single request.
@@ -261,6 +250,15 @@ class OcrService
         }
 
         $this->blankOutsideHitboxes($img, $markers);
+
+        if (config('services.google_cloud_vision.ocr_debug_images')) {
+            $dir = storage_path('app/debug');
+            if (! is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+            $stem = pathinfo($imagePath, PATHINFO_FILENAME);
+            imagejpeg($img, $dir.'/ocr_'.$stem.'_'.time().'.jpg', 85);
+        }
 
         ob_start();
         imagejpeg($img, null, 95);
