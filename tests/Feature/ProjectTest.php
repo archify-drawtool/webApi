@@ -32,7 +32,7 @@ it('returns 401 when unauthenticated on projects index', function () {
     $this->getJson('/api/projects')->assertUnauthorized();
 });
 
-it('soft-deletes a project and its sketches', function () {
+it('deletes a project and its sketches', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create(['created_by' => $user->id]);
     $sketches = Sketch::factory(2)->create(['project_id' => $project->id, 'created_by' => $user->id]);
@@ -41,12 +41,10 @@ it('soft-deletes a project and its sketches', function () {
         ->deleteJson("/api/projects/{$project->id}")
         ->assertNoContent();
 
-    expect(Project::find($project->id))->toBeNull();
-    expect(Project::withTrashed()->find($project->id)->trashed())->toBeTrue();
+    $this->assertDatabaseMissing('projects', ['id' => $project->id]);
 
     foreach ($sketches as $sketch) {
-        expect(Sketch::find($sketch->id))->toBeNull();
-        expect(Sketch::withTrashed()->find($sketch->id)->trashed())->toBeTrue();
+        $this->assertDatabaseMissing('sketches', ['id' => $sketch->id]);
     }
 
     $this->actingAs($user)
