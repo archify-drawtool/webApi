@@ -58,8 +58,6 @@ class OcrService
         return $this->matchTextToMarkers($textAnnotations, $markers);
     }
 
-    private const float OCR_CONFIDENCE_THRESHOLD = 0.5;
-
     /**
      * @return array[] Word entries: description, vertices (4-point boundingBox), confidence
      */
@@ -95,7 +93,7 @@ class OcrService
                 foreach ($block['paragraphs'] ?? [] as $paragraph) {
                     foreach ($paragraph['words'] ?? [] as $word) {
                         $confidence = (float) ($word['confidence'] ?? 0.0);
-                        if ($confidence < self::OCR_CONFIDENCE_THRESHOLD) {
+                        if ($confidence < config('services.google_cloud_vision.ocr_confidence_threshold')) {
                             continue;
                         }
 
