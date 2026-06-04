@@ -32,6 +32,36 @@ final class MarkerGeometry
     }
 
     /**
+     * Average of a marker's width and height in pixels.
+     * Returns 0.0 when the required corners are missing.
+     *
+     * @param  iterable  $corners  ArucoMarkerCorner models with position, x, y.
+     */
+    public static function markerSize(iterable $corners): float
+    {
+        $dims = self::markerDimensions($corners);
+
+        return ($dims['width'] + $dims['height']) / 2.0;
+    }
+
+    /**
+     * Effective size of a marker including its OCR hitbox, in pixels.
+     * The hitbox extends the physical marker by xPos/xNeg marker-widths horizontally
+     * and yPos/yNeg marker-heights vertically (from config/marker_config.php).
+     * Returns 0.0 when corners are missing.
+     */
+    public static function markerEffectiveSize(object $marker): float
+    {
+        $dims = self::markerDimensions($marker->corners);
+        $hitbox = self::resolveHitbox((int) $marker->marker_id);
+
+        $effectiveWidth = $dims['width'] * (1 + $hitbox['xPos'] + $hitbox['xNeg']);
+        $effectiveHeight = $dims['height'] * (1 + $hitbox['yPos'] + $hitbox['yNeg']);
+
+        return ($effectiveWidth + $effectiveHeight) / 2.0;
+    }
+
+    /**
      * World-coordinate center of the OCR hitbox area surrounding a marker.
      *
      * Hitbox offsets are in the marker's local frame (xPos = forward/right, xNeg = back/left).
