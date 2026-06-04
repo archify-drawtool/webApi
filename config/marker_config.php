@@ -21,7 +21,7 @@
  * The 'default' key is used as fallback when a marker ID is not listed below.
  */
 return [
-    'default' => ['type' => 'node', 'hitbox' => ['xPos' => 0.4, 'xNeg' => 4.8, 'yPos' => 0.4, 'yNeg' => 5.4]],
+    'default' => ['type' => 'node', 'hitbox' => ['xPos' => 0.4, 'xNeg' => 4.8, 'yPos' => 0.4, 'yNeg' => 1.2]],
 
     // --- Node markers ---
 

@@ -109,8 +109,8 @@ class OcrService
 
                         $words[] = [
                             'description' => $text,
-                            'vertices'    => $vertices,
-                            'confidence'  => $confidence,
+                            'vertices' => $vertices,
+                            'confidence' => $confidence,
                         ];
                     }
                 }
@@ -121,7 +121,7 @@ class OcrService
     }
 
     /**
-     * @param  array[]  $words    Word entries from recognizeFullImage
+     * @param  array[]  $words  Word entries from recognizeFullImage
      * @param  array[]  $markers  Raw marker arrays from ArucoService
      * @return string[]
      */
@@ -152,17 +152,17 @@ class OcrService
                 $centroidX = array_sum(array_column($vertices, 'x')) / count($vertices);
                 $centroidY = array_sum(array_column($vertices, 'y')) / count($vertices);
 
-                if (!MarkerGeometry::pointInHitbox($centroidX, $centroidY, $hitboxCorners)) {
+                if (! MarkerGeometry::pointInHitbox($centroidX, $centroidY, $hitboxCorners)) {
                     continue;
                 }
 
                 $localYs = array_map(fn ($v) => -$sinR * (($v['x'] ?? 0) - $cx) + $cosR * (($v['y'] ?? 0) - $cy), $vertices);
-                $localXs = array_map(fn ($v) =>  $cosR * (($v['x'] ?? 0) - $cx) + $sinR * (($v['y'] ?? 0) - $cy), $vertices);
+                $localXs = array_map(fn ($v) => $cosR * (($v['x'] ?? 0) - $cx) + $sinR * (($v['y'] ?? 0) - $cy), $vertices);
 
                 $matched[] = [
-                    'text'   => $word['description'],
-                    'lineY'  => (min($localYs) + max($localYs)) / 2.0,
-                    'wordH'  => max($localYs) - min($localYs),
+                    'text' => $word['description'],
+                    'lineY' => (min($localYs) + max($localYs)) / 2.0,
+                    'wordH' => max($localYs) - min($localYs),
                     'startX' => min($localXs),
                 ];
             }
@@ -170,10 +170,10 @@ class OcrService
             $result = $this->orderWordsIntoLines($matched, $width);
 
             Log::debug('OCR marker match', [
-                'marker_id'  => $marker['id'],
+                'marker_id' => $marker['id'],
                 'word_count' => count($matched),
-                'words'      => array_map(fn ($w) => ['text' => $w['text'], 'lineY' => round($w['lineY'], 1), 'startX' => round($w['startX'], 1)], $matched),
-                'result'     => $result,
+                'words' => array_map(fn ($w) => ['text' => $w['text'], 'lineY' => round($w['lineY'], 1), 'startX' => round($w['startX'], 1)], $matched),
+                'result' => $result,
             ]);
 
             $results[$index] = $result;
@@ -209,7 +209,7 @@ class OcrService
             }
             unset($line);
 
-            if (!$placed) {
+            if (! $placed) {
                 $lines[] = ['centerY' => $word['lineY'], 'words' => [$word]];
             }
         }
@@ -260,11 +260,52 @@ class OcrService
             ], $white);
         }
 
+        $this->blankOutsideHitboxes($img, $markers);
+
         ob_start();
         imagejpeg($img, null, 95);
         $bytes = ob_get_clean();
 
         return $bytes;
+    }
+
+    private function blankOutsideHitboxes(\GdImage $img, array $markers): void
+    {
+        $w = imagesx($img);
+        $h = imagesy($img);
+
+        $mask = imagecreatetruecolor($w, $h);
+        $maskBlack = imagecolorallocate($mask, 0, 0, 0);
+        $maskWhite = imagecolorallocate($mask, 255, 255, 255);
+        imagefill($mask, 0, 0, $maskBlack);
+
+        foreach ($markers as $marker) {
+            $cx = (float) $marker['center']['x'];
+            $cy = (float) $marker['center']['y'];
+            $corners = $marker['corners'];
+            $markerW = MarkerGeometry::euclideanDistance(
+                (float) $corners[0]['x'], (float) $corners[0]['y'],
+                (float) $corners[1]['x'], (float) $corners[1]['y'],
+            );
+            $hitbox = MarkerGeometry::resolveHitbox((int) $marker['id']);
+            $hitboxCorners = MarkerGeometry::hitboxCorners($cx, $cy, $markerW, $hitbox, (float) $marker['rotation']);
+
+            imagefilledpolygon($mask, [
+                (int) round($hitboxCorners[0]['x']), (int) round($hitboxCorners[0]['y']),
+                (int) round($hitboxCorners[1]['x']), (int) round($hitboxCorners[1]['y']),
+                (int) round($hitboxCorners[2]['x']), (int) round($hitboxCorners[2]['y']),
+                (int) round($hitboxCorners[3]['x']), (int) round($hitboxCorners[3]['y']),
+            ], $maskWhite);
+        }
+
+        $imgWhite = imagecolorallocate($img, 255, 255, 255);
+        for ($y = 0; $y < $h; $y++) {
+            for ($x = 0; $x < $w; $x++) {
+                if (imagecolorat($mask, $x, $y) === 0) {
+                    imagesetpixel($img, $x, $y, $imgWhite);
+                }
+            }
+        }
     }
 
     /**
