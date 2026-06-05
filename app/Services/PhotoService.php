@@ -12,6 +12,7 @@ use App\Models\DetectionResult;
 use App\Models\Photo;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -25,7 +26,7 @@ readonly class PhotoService
         private VueFlowConversionService $vueFlowConversionService,
     ) {}
 
-    public function store(UploadedFile $photo, int $projectId): Photo
+    public function store(UploadedFile $photo, ?int $projectId): Photo
     {
         $filename = now()->timezone('Europe/Amsterdam')->format('Y-m-d_H-i-s_v').'.'.$photo->getClientOriginalExtension();
         $path = $photo->storeAs('photos', $filename, 'local');
@@ -37,12 +38,12 @@ readonly class PhotoService
             'status' => PhotoStatus::Processing,
         ]);
 
-        ProcessPhotoJob::dispatch($photoModel);
+        ProcessPhotoJob::dispatch($photoModel, Auth::id());
 
         return $photoModel;
     }
 
-    public function process(Photo $photo): void
+    public function process(Photo $photo, ?int $userId = null): void
     {
         $absolutePath = Storage::disk('local')->path($photo->path);
 
@@ -100,7 +101,7 @@ readonly class PhotoService
                 ]);
             }
 
-            $sketch = $this->vueFlowConversionService->convert($detectionResult, $photo->project_id);
+            $sketch = $this->vueFlowConversionService->convert($detectionResult, $photo->project_id, $userId);
 
             $photo->update([
                 'status' => PhotoStatus::Completed,

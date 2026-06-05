@@ -17,7 +17,8 @@ Route::get('/health', function () {
 
 Route::get('/metrics', PrometheusMetricsController::class);
 
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/auth/microsoft', [AuthController::class, 'microsoftLogin']);
+
 Route::get('/shared/node-types', [SharedLinkController::class, 'nodesTypes']);
 Route::get('/shared/{token}', [SharedLinkController::class, 'show']);
 Route::get('/shared/{token}/photo', [SharedLinkController::class, 'showPhoto']);
@@ -25,6 +26,7 @@ Route::get('/shared/{token}/comments', [SharedLinkController::class, 'comments']
 Route::post('/shared/{token}/comments', [SharedLinkController::class, 'storeComment']);
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/me', [AuthController::class, 'me']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::patch('/user', [AuthController::class, 'updatePreferences']);
     Route::post('/logout', [AuthController::class, 'logout']);
