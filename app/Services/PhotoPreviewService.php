@@ -34,6 +34,9 @@ class PhotoPreviewService
 
         $filename = now()->timezone('Europe/Amsterdam')->format('Y-m-d_H-i-s_v').'.'.$photo->getClientOriginalExtension();
         $path = $photo->storeAs('photos/previews', $filename, 'local');
+        $absolutePath = Storage::disk('local')->path($path);
+
+        $this->imageSnippetService->normalizeExifOrientation($absolutePath);
 
         $preview = PhotoPreview::create([
             'user_id' => $userId,
@@ -146,7 +149,7 @@ class PhotoPreviewService
         if ($detectionResult) {
             $detectionResult->update(['image_path' => $permanentPath]);
 
-            $sketch = $this->vueFlowConversionService->convert($detectionResult, $projectId);
+            $sketch = $this->vueFlowConversionService->convert($detectionResult, $projectId, $userId);
             $photo->update(['sketch_id' => $sketch->id]);
         }
 
@@ -157,8 +160,11 @@ class PhotoPreviewService
 
     public function deletePreview(PhotoPreview $preview): void
     {
+        $detectionResult = $preview->detectionResult;
+
         Storage::disk('local')->delete($preview->file_path);
         $preview->delete();
+        $detectionResult?->delete();
     }
 
     public function cleanupExpired(): void

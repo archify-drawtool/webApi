@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\PhotoPreviewStatus;
 use App\Models\PhotoPreview;
 use App\Services\PhotoPreviewService;
 use Illuminate\Http\JsonResponse;
@@ -45,10 +46,14 @@ class PhotoPreviewController extends Controller
     public function commit(Request $request, PhotoPreview $preview): JsonResponse
     {
         abort_if($preview->user_id !== $request->user()->id, 403);
+        abort_if(
+            $preview->status !== PhotoPreviewStatus::Detected || $preview->detection_result_id === null,
+            409,
+            'Preview-detectie is nog niet klaar.'
+        );
 
         $request->validate([
             'project_id' => ['nullable', 'integer', Rule::exists('projects', 'id')],
-            'rotation' => ['nullable', 'integer'],
         ]);
 
         $projectId = $request->filled('project_id') ? $request->integer('project_id') : null;
