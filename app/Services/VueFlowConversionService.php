@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 
 class VueFlowConversionService
 {
-    public function convert(DetectionResult $detectionResult, int $projectId): Sketch
+    public function convert(DetectionResult $detectionResult, ?int $projectId): Sketch
     {
         $detectionResult->loadMissing([
             'markers.corners',
