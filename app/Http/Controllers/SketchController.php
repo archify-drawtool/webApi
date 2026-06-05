@@ -25,6 +25,7 @@ class SketchController extends Controller
 
         $sketches = Sketch::where('created_by', $request->user()->id)
             ->when($request->filled('project_id'), fn ($q) => $q->where('project_id', $request->project_id))
+            ->when($request->boolean('projectless'), fn ($q) => $q->whereNull('project_id'))
             ->with('creator:id,name,email')
             ->orderByDesc('updated_at')
             ->get();
