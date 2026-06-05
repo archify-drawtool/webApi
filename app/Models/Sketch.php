@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -41,9 +42,26 @@ class Sketch extends Model
         'canvas_state',
     ];
 
-    protected $casts = [
-        'canvas_state' => 'array',
-    ];
+    protected function canvasState(): Attribute
+    {
+        return Attribute::make(
+            get: fn (?string $value) => $value !== null ? json_decode($value, true) : null,
+            set: function (?array $value) {
+                if ($value === null) {
+                    return null;
+                }
+
+                foreach ($value['edges'] ?? [] as &$edge) {
+                    if (($edge['type'] ?? null) === 'smoothstep') {
+                        $edge['type'] = 'straight';
+                    }
+                }
+                unset($edge);
+
+                return json_encode($value);
+            },
+        )->shouldCache();
+    }
 
     public function project(): BelongsTo
     {
