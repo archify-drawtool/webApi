@@ -21,7 +21,6 @@ class DatabaseSeeder extends Seeder
         $testUser = User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
-            'password' => bcrypt('password'),
         ]);
 
         // Extra realistische gebruikers
@@ -29,17 +28,14 @@ class DatabaseSeeder extends Seeder
             User::factory()->create([
                 'name' => 'Lars van den Berg',
                 'email' => 'lars.vandenberg@bouwbedrijf.nl',
-                'password' => bcrypt('password'),
             ]),
             User::factory()->create([
                 'name' => 'Noor Janssen',
                 'email' => 'n.janssen@architectenbureau.nl',
-                'password' => bcrypt('password'),
             ]),
             User::factory()->create([
                 'name' => 'Daan de Vries',
                 'email' => 'daan.devries@interieurburo.nl',
-                'password' => bcrypt('password'),
             ]),
         ]);
 
