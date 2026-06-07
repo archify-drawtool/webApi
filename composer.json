@@ -12,9 +12,11 @@
         "php": "^8.4",
         "ext-gd": "*",
         "ext-pdo": "*",
+        "firebase/php-jwt": "^7.0",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.10.1",
+        "league/flysystem-aws-s3-v3": "^3.0",
         "spatie/laravel-prometheus": "^1.5"
     },
     "require-dev": {

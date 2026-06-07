@@ -12,6 +12,7 @@ use App\Models\DetectionResult;
 use App\Models\Photo;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -25,10 +26,10 @@ readonly class PhotoService
         private VueFlowConversionService $vueFlowConversionService,
     ) {}
 
-    public function store(UploadedFile $photo, int $projectId): Photo
+    public function store(UploadedFile $photo, ?int $projectId): Photo
     {
         $filename = now()->timezone('Europe/Amsterdam')->format('Y-m-d_H-i-s_v').'.'.$photo->getClientOriginalExtension();
-        $path = $photo->storeAs('photos', $filename, 'local');
+        $path = $photo->storeAs('photos', $filename, 's3');
 
         $photoModel = Photo::create([
             'project_id' => $projectId,
@@ -37,17 +38,25 @@ readonly class PhotoService
             'status' => PhotoStatus::Processing,
         ]);
 
-        ProcessPhotoJob::dispatch($photoModel);
+        ProcessPhotoJob::dispatch($photoModel, Auth::id());
 
         return $photoModel;
     }
 
-    public function process(Photo $photo): void
+    public function process(Photo $photo, ?int $userId = null): void
     {
-        $absolutePath = Storage::disk('local')->path($photo->path);
+        // The detection pipeline (Python ArUco subprocess + GD) requires a real
+        // local file path, so we pull the S3 object down to a temp file first.
+        // Image type is detected from file contents (getimagesize), so the temp
+        // file needs no extension.
+        $absolutePath = tempnam(sys_get_temp_dir(), 'photo_');
+        file_put_contents($absolutePath, Storage::disk('s3')->get($photo->path));
 
         try {
+            // normalizeExifOrientation rewrites the temp file in place. Push the
+            // corrected image back to S3 so the stored object matches what we processed.
             $this->imageSnippetService->normalizeExifOrientation($absolutePath);
+            Storage::disk('s3')->put($photo->path, file_get_contents($absolutePath));
 
             $markers = $this->arucoService->detectMarkers($absolutePath);
 
@@ -100,7 +109,7 @@ readonly class PhotoService
                 ]);
             }
 
-            $sketch = $this->vueFlowConversionService->convert($detectionResult, $photo->project_id);
+            $sketch = $this->vueFlowConversionService->convert($detectionResult, $photo->project_id, $userId);
 
             $photo->update([
                 'status' => PhotoStatus::Completed,
@@ -120,6 +129,10 @@ readonly class PhotoService
                 'status' => PhotoStatus::Failed,
                 'error_message' => $e->getMessage(),
             ]);
+        } finally {
+            if (is_file($absolutePath)) {
+                @unlink($absolutePath);
+            }
         }
     }
 
