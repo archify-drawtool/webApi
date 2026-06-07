@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Helpers\MarkerGeometry;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class OcrService
@@ -209,8 +208,8 @@ class OcrService
     }
 
     /**
-     * Load the image, paint a filled white polygon over every marker's corner quadrilateral,
-     * and return the result as raw JPEG bytes. The modified image is never written to disk.
+     * Load the image, blank everything outside each marker's hitbox, blank the marker squares
+     * themselves, and return the result as raw JPEG bytes. Never written to disk.
      *
      * @param  array[]  $markers  Raw marker arrays from ArucoService (corners in TL→TR→BR→BL order)
      */
@@ -228,7 +227,32 @@ class OcrService
             throw new \RuntimeException("Failed to load image for marker blanking: $imagePath");
         }
 
+        $w = imagesx($img);
+        $h = imagesy($img);
         $white = imagecolorallocate($img, 255, 255, 255);
+
+        $orig = imagecreatetruecolor($w, $h);
+        imagecopy($orig, $img, 0, 0, 0, 0, $w, $h);
+
+        imagefilledrectangle($img, 0, 0, $w - 1, $h - 1, $white);
+
+        foreach ($markers as $marker) {
+            $cx = (float) $marker['center']['x'];
+            $cy = (float) $marker['center']['y'];
+            $corners = $marker['corners'];
+            $markerW = MarkerGeometry::euclideanDistance(
+                (float) $corners[0]['x'], (float) $corners[0]['y'],
+                (float) $corners[1]['x'], (float) $corners[1]['y'],
+            );
+            $hc = MarkerGeometry::hitboxCorners($cx, $cy, $markerW, MarkerGeometry::resolveHitbox((int) $marker['id']), (float) $marker['rotation']);
+
+            $x1 = max(0, (int) floor(min(array_column($hc, 'x'))));
+            $y1 = max(0, (int) floor(min(array_column($hc, 'y'))));
+            $x2 = min($w - 1, (int) ceil(max(array_column($hc, 'x'))));
+            $y2 = min($h - 1, (int) ceil(max(array_column($hc, 'y'))));
+
+            imagecopy($img, $orig, $x1, $y1, $x1, $y1, $x2 - $x1, $y2 - $y1);
+        }
 
         foreach ($markers as $marker) {
             $c = $marker['corners'];
@@ -239,8 +263,6 @@ class OcrService
                 (int) round($c[3]['x']), (int) round($c[3]['y']),
             ], $white);
         }
-
-        $this->blankOutsideHitboxes($img, $markers);
 
         if (config('services.google_cloud_vision.ocr_debug_images')) {
             $dir = storage_path('app/debug');
@@ -256,45 +278,6 @@ class OcrService
         $bytes = ob_get_clean();
 
         return $bytes;
-    }
-
-    private function blankOutsideHitboxes(\GdImage $img, array $markers): void
-    {
-        $w = imagesx($img);
-        $h = imagesy($img);
-
-        $mask = imagecreatetruecolor($w, $h);
-        $maskBlack = imagecolorallocate($mask, 0, 0, 0);
-        $maskWhite = imagecolorallocate($mask, 255, 255, 255);
-        imagefill($mask, 0, 0, $maskBlack);
-
-        foreach ($markers as $marker) {
-            $cx = (float) $marker['center']['x'];
-            $cy = (float) $marker['center']['y'];
-            $corners = $marker['corners'];
-            $markerW = MarkerGeometry::euclideanDistance(
-                (float) $corners[0]['x'], (float) $corners[0]['y'],
-                (float) $corners[1]['x'], (float) $corners[1]['y'],
-            );
-            $hitbox = MarkerGeometry::resolveHitbox((int) $marker['id']);
-            $hitboxCorners = MarkerGeometry::hitboxCorners($cx, $cy, $markerW, $hitbox, (float) $marker['rotation']);
-
-            imagefilledpolygon($mask, [
-                (int) round($hitboxCorners[0]['x']), (int) round($hitboxCorners[0]['y']),
-                (int) round($hitboxCorners[1]['x']), (int) round($hitboxCorners[1]['y']),
-                (int) round($hitboxCorners[2]['x']), (int) round($hitboxCorners[2]['y']),
-                (int) round($hitboxCorners[3]['x']), (int) round($hitboxCorners[3]['y']),
-            ], $maskWhite);
-        }
-
-        $imgWhite = imagecolorallocate($img, 255, 255, 255);
-        for ($y = 0; $y < $h; $y++) {
-            for ($x = 0; $x < $w; $x++) {
-                if (imagecolorat($mask, $x, $y) === 0) {
-                    imagesetpixel($img, $x, $y, $imgWhite);
-                }
-            }
-        }
     }
 
     /**
