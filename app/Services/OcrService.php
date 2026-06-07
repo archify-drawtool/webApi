@@ -72,8 +72,6 @@ class OcrService
             throw new HttpException(502, 'Google Cloud Vision API error: '.$e->response->status());
         }
 
-        Log::debug('OCR raw response', ['json' => $response->body()]);
-
         $pages = $response->json('responses.0.fullTextAnnotation.pages') ?? [];
         $words = [];
 
@@ -157,13 +155,6 @@ class OcrService
             }
 
             $result = $this->orderWordsIntoLines($matched, $width);
-
-            Log::debug('OCR marker match', [
-                'marker_id' => $marker['id'],
-                'word_count' => count($matched),
-                'words' => array_map(fn ($w) => ['text' => $w['text'], 'lineY' => round($w['lineY'], 1), 'startX' => round($w['startX'], 1)], $matched),
-                'result' => $result,
-            ]);
 
             $results[$index] = $result;
         }
