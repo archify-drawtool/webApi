@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\NodeTypeController;
 use App\Http\Controllers\PhotoController;
+use App\Http\Controllers\PhotoPreviewController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\SharedLinkController;
 use App\Http\Controllers\SketchController;
@@ -36,6 +37,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/projects/{project}', [ProjectController::class, 'rename']);
     Route::delete('/projects/{project}', [ProjectController::class, 'destroy']);
     Route::post('/photos/upload', [PhotoController::class, 'upload']);
+    Route::post('/photos/preview', [PhotoPreviewController::class, 'preview']);
+    Route::get('/photos/preview/{preview}', [PhotoPreviewController::class, 'status']);
+    Route::post('/photos/preview/{preview}/commit', [PhotoPreviewController::class, 'commit']);
+    Route::delete('/photos/preview/{preview}', [PhotoPreviewController::class, 'destroy']);
     Route::get('/photos/{photo}/status', [PhotoController::class, 'status']);
     Route::get('/photos/{sketch_id}/aruco', [PhotoController::class, 'getArucoResults']);
     Route::get('/sketches', [SketchController::class, 'userIndex']);
