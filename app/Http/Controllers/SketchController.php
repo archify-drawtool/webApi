@@ -54,9 +54,9 @@ class SketchController extends Controller
         $photo = $sketch->photo()->whereNotNull('path')->first();
 
         abort_if($photo === null, 404);
-        abort_unless(Storage::disk('local')->exists($photo->path), 404);
+        abort_unless(Storage::disk('s3')->exists($photo->path), 404);
 
-        return Storage::disk('local')->response($photo->path);
+        return Storage::disk('s3')->response($photo->path);
     }
 
     /**
