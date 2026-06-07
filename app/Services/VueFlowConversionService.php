@@ -63,7 +63,7 @@ class VueFlowConversionService
             ->all();
 
         return Sketch::create([
-            'title' => 'Foto-schets '.now()->format('d-m-Y'),
+            'title' => 'Foto-schets '.now()->format('d-m-Y H:i'),
             'project_id' => $projectId,
             'created_by' => $userId,
             'canvas_state' => ['nodes' => $nodes, 'edges' => $edges],
