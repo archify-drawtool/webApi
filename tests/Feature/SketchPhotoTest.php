@@ -9,13 +9,13 @@ use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
-    Storage::fake('local');
+    Storage::fake('s3');
 });
 
 function makePhoto(Sketch $sketch, ?string $path = 'photos/test.jpg'): Photo
 {
     if ($path !== null) {
-        Storage::disk('local')->put($path, 'fake-jpeg-bytes');
+        Storage::disk('s3')->put($path, 'fake-jpeg-bytes');
     }
 
     return Photo::create([
@@ -73,7 +73,7 @@ it('returns 404 from the auth photo endpoint when the file is missing on disk', 
     $user = User::factory()->create();
     $sketch = Sketch::factory()->create(['created_by' => $user->id]);
     makePhoto($sketch, 'photos/missing.jpg');
-    Storage::disk('local')->delete('photos/missing.jpg');
+    Storage::disk('s3')->delete('photos/missing.jpg');
 
     $this->actingAs($user)
         ->get("/api/sketches/{$sketch->id}/photo")
