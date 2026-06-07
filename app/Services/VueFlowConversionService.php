@@ -7,6 +7,7 @@ use App\Helpers\MarkerGeometry;
 use App\Models\DetectedEdge;
 use App\Models\DetectionResult;
 use App\Models\Sketch;
+use Illuminate\Support\Facades\Auth;
 
 class VueFlowConversionService
 {
@@ -65,7 +66,7 @@ class VueFlowConversionService
         return Sketch::create([
             'title' => 'Foto-schets '.now()->format('d-m-Y'),
             'project_id' => $projectId,
-            'created_by' => $userId,
+            'created_by' => $userId ?? Auth::id(),
             'canvas_state' => ['nodes' => $nodes, 'edges' => $edges],
         ]);
     }

@@ -63,13 +63,14 @@ test('converts 4 nodes and 3 edges of all types into a sketch', function () {
         'edge_type' => MarkerType::Bidirectional,
     ]);
 
-    $sketch = (new VueFlowConversionService)->convert($result, $project->id);
+    $sketch = (new VueFlowConversionService)->convert($result, $project->id, $user->id);
 
     $nodes = $sketch->canvas_state['nodes'];
     $edges = $sketch->canvas_state['edges'];
 
     expect($nodes)->toHaveCount(4);
     expect($edges)->toHaveCount(3);
+    expect($sketch->created_by)->toBe($user->id);
 
     // Node types resolved from node_types config
     $types = collect($nodes)->pluck('type')->sort()->values()->all();
