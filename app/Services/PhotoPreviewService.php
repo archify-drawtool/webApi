@@ -135,7 +135,8 @@ class PhotoPreviewService
         $filename = basename($preview->file_path);
         $permanentPath = 'photos/'.$filename;
 
-        Storage::disk('local')->move($preview->file_path, $permanentPath);
+        Storage::disk('s3')->put($permanentPath, Storage::disk('local')->get($preview->file_path));
+        Storage::disk('local')->delete($preview->file_path);
 
         $photo = Photo::create([
             'project_id' => $projectId,

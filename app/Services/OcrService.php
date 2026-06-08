@@ -4,23 +4,12 @@ namespace App\Services;
 
 use App\Helpers\MarkerGeometry;
 use Illuminate\Http\Client\RequestException;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class OcrService
 {
     private const string VISION_API_URL = 'https://vision.googleapis.com/v1/images:annotate';
-
-    public function recognizeText(UploadedFile $photo): string
-    {
-        return $this->callVisionApi([base64_encode(file_get_contents($photo->getRealPath()))])[0];
-    }
-
-    public function recognizeTextFromImageData(string $imageData): string
-    {
-        return $this->callVisionApi([base64_encode($imageData)])[0];
-    }
 
     /**
      * Send multiple images to the Vision API in a single request.
@@ -58,7 +47,7 @@ class OcrService
     }
 
     /**
-     * @return array[] textAnnotations[1..] from Vision (word-level blocks with boundingPoly)
+     * @return array[] Word entries: description, vertices (4-point boundingBox), confidence
      */
     private function recognizeFullImage(string $imagePath, array $markers): array
     {
@@ -70,7 +59,10 @@ class OcrService
                 'requests' => [[
                     'image' => ['content' => $base64],
                     'features' => [['type' => 'DOCUMENT_TEXT_DETECTION']],
-                    'imageContext' => ['languageHints' => ['en', 'nl']],
+                    'imageContext' => [
+                        'languageHints' => ['en', 'nl'],
+                        'textDetectionParams' => ['enableTextDetectionConfidenceScore' => true],
+                    ],
                 ]],
             ]);
 
@@ -79,17 +71,47 @@ class OcrService
             throw new HttpException(502, 'Google Cloud Vision API error: '.$e->response->status());
         }
 
-        $annotations = $response->json('responses.0.textAnnotations') ?? [];
+        $pages = $response->json('responses.0.fullTextAnnotation.pages') ?? [];
+        $words = [];
 
-        return array_slice($annotations, 1);
+        foreach ($pages as $page) {
+            foreach ($page['blocks'] ?? [] as $block) {
+                foreach ($block['paragraphs'] ?? [] as $paragraph) {
+                    foreach ($paragraph['words'] ?? [] as $word) {
+                        $confidence = (float) ($word['confidence'] ?? 0.0);
+                        if ($confidence < config('services.google_cloud_vision.ocr_confidence_threshold')) {
+                            continue;
+                        }
+
+                        $vertices = $word['boundingBox']['vertices'] ?? [];
+                        $text = implode('', array_map(
+                            fn (array $symbol) => $symbol['text'] ?? '',
+                            $word['symbols'] ?? []
+                        ));
+
+                        if ($text === '' || empty($vertices)) {
+                            continue;
+                        }
+
+                        $words[] = [
+                            'description' => $text,
+                            'vertices' => $vertices,
+                            'confidence' => $confidence,
+                        ];
+                    }
+                }
+            }
+        }
+
+        return $words;
     }
 
     /**
-     * @param  array[]  $textAnnotations  Word-level Vision blocks (description + boundingPoly.vertices)
+     * @param  array[]  $words  Word entries from recognizeFullImage
      * @param  array[]  $markers  Raw marker arrays from ArucoService
      * @return string[]
      */
-    private function matchTextToMarkers(array $textAnnotations, array $markers): array
+    private function matchTextToMarkers(array $words, array $markers): array
     {
         $results = array_fill(0, count($markers), '');
 
@@ -106,30 +128,88 @@ class OcrService
             $hitbox = MarkerGeometry::resolveHitbox((int) $marker['id']);
             $hitboxCorners = MarkerGeometry::hitboxCorners($cx, $cy, $width, $hitbox, (float) $marker['rotation']);
 
-            $words = [];
-            foreach ($textAnnotations as $block) {
-                $vertices = $block['boundingPoly']['vertices'] ?? [];
-                if (empty($vertices)) {
-                    continue;
-                }
+            $rRad = deg2rad((float) $marker['rotation']);
+            $cosR = cos($rRad);
+            $sinR = sin($rRad);
 
+            $matched = [];
+            foreach ($words as $word) {
+                $vertices = $word['vertices'];
                 $centroidX = array_sum(array_column($vertices, 'x')) / count($vertices);
                 $centroidY = array_sum(array_column($vertices, 'y')) / count($vertices);
 
-                if (MarkerGeometry::pointInHitbox($centroidX, $centroidY, $hitboxCorners)) {
-                    $words[] = $block['description'];
+                if (! MarkerGeometry::pointInHitbox($centroidX, $centroidY, $hitboxCorners)) {
+                    continue;
                 }
+
+                $localYs = array_map(fn ($v) => -$sinR * (($v['x'] ?? 0) - $cx) + $cosR * (($v['y'] ?? 0) - $cy), $vertices);
+                $localXs = array_map(fn ($v) => $cosR * (($v['x'] ?? 0) - $cx) + $sinR * (($v['y'] ?? 0) - $cy), $vertices);
+
+                $matched[] = [
+                    'text' => $word['description'],
+                    'lineY' => (min($localYs) + max($localYs)) / 2.0,
+                    'wordH' => max($localYs) - min($localYs),
+                    'startX' => min($localXs),
+                ];
             }
 
-            $results[$index] = implode(' ', $words);
+            $result = $this->orderWordsIntoLines($matched, $width);
+
+            $results[$index] = $result;
         }
 
         return $results;
     }
 
     /**
-     * Load the image, paint a filled white polygon over every marker's corner quadrilateral,
-     * and return the result as raw JPEG bytes. The modified image is never written to disk.
+     * Group words into lines by Y proximity, then sort lines top-to-bottom and words left-to-right.
+     *
+     * @param  array[]  $words  Each entry: text, lineY, wordH, startX (all in marker-local frame)
+     */
+    private function orderWordsIntoLines(array $words, float $markerWidth): string
+    {
+        if (empty($words)) {
+            return '';
+        }
+
+        usort($words, fn ($a, $b) => $a['lineY'] <=> $b['lineY'] ?: $a['startX'] <=> $b['startX']);
+
+        $lines = [];
+        foreach ($words as $word) {
+            $threshold = max($word['wordH'] * 0.6, $markerWidth * 0.1);
+            $placed = false;
+            foreach ($lines as &$line) {
+                if (abs($word['lineY'] - $line['centerY']) <= $threshold) {
+                    $line['words'][] = $word;
+                    $line['centerY'] = array_sum(array_column($line['words'], 'lineY')) / count($line['words']);
+                    $placed = true;
+                    break;
+                }
+            }
+            unset($line);
+
+            if (! $placed) {
+                $lines[] = ['centerY' => $word['lineY'], 'words' => [$word]];
+            }
+        }
+
+        usort($lines, fn ($a, $b) => $a['centerY'] <=> $b['centerY']);
+
+        $ordered = [];
+        foreach ($lines as $line) {
+            $lineWords = $line['words'];
+            usort($lineWords, fn ($a, $b) => $a['startX'] <=> $b['startX']);
+            foreach ($lineWords as $w) {
+                $ordered[] = $w['text'];
+            }
+        }
+
+        return implode(' ', $ordered);
+    }
+
+    /**
+     * Load the image, blank everything outside each marker's hitbox, blank the marker squares
+     * themselves, and return the result as raw JPEG bytes. Never written to disk.
      *
      * @param  array[]  $markers  Raw marker arrays from ArucoService (corners in TL→TR→BR→BL order)
      */
@@ -147,7 +227,32 @@ class OcrService
             throw new \RuntimeException("Failed to load image for marker blanking: $imagePath");
         }
 
+        $w = imagesx($img);
+        $h = imagesy($img);
         $white = imagecolorallocate($img, 255, 255, 255);
+
+        $orig = imagecreatetruecolor($w, $h);
+        imagecopy($orig, $img, 0, 0, 0, 0, $w, $h);
+
+        imagefilledrectangle($img, 0, 0, $w - 1, $h - 1, $white);
+
+        foreach ($markers as $marker) {
+            $cx = (float) $marker['center']['x'];
+            $cy = (float) $marker['center']['y'];
+            $corners = $marker['corners'];
+            $markerW = MarkerGeometry::euclideanDistance(
+                (float) $corners[0]['x'], (float) $corners[0]['y'],
+                (float) $corners[1]['x'], (float) $corners[1]['y'],
+            );
+            $hc = MarkerGeometry::hitboxCorners($cx, $cy, $markerW, MarkerGeometry::resolveHitbox((int) $marker['id']), (float) $marker['rotation']);
+
+            $x1 = max(0, (int) floor(min(array_column($hc, 'x'))));
+            $y1 = max(0, (int) floor(min(array_column($hc, 'y'))));
+            $x2 = min($w - 1, (int) ceil(max(array_column($hc, 'x'))));
+            $y2 = min($h - 1, (int) ceil(max(array_column($hc, 'y'))));
+
+            imagecopy($img, $orig, $x1, $y1, $x1, $y1, $x2 - $x1, $y2 - $y1);
+        }
 
         foreach ($markers as $marker) {
             $c = $marker['corners'];
@@ -157,6 +262,15 @@ class OcrService
                 (int) round($c[2]['x']), (int) round($c[2]['y']),
                 (int) round($c[3]['x']), (int) round($c[3]['y']),
             ], $white);
+        }
+
+        if (config('services.google_cloud_vision.ocr_debug_images')) {
+            $dir = storage_path('app/debug');
+            if (! is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+            $stem = pathinfo($imagePath, PATHINFO_FILENAME);
+            imagejpeg($img, $dir.'/ocr_'.$stem.'_'.time().'.jpg', 85);
         }
 
         ob_start();
