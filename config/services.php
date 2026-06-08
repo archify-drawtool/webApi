@@ -37,6 +37,8 @@ return [
 
     'google_cloud_vision' => [
         'api_key' => env('GOOGLE_CLOUD_VISION_API_KEY'),
+        'ocr_confidence_threshold' => (float) env('VISION_OCR_CONFIDENCE_THRESHOLD', 0.6),
+        'ocr_debug_images' => (bool) env('VISION_OCR_DEBUG_IMAGES', false),
     ],
 
 ];

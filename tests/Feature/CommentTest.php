@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Comment;
+use App\Models\Project;
+use App\Models\SharedLink;
 use App\Models\Sketch;
 use App\Models\User;
 
@@ -172,7 +174,7 @@ it('updates the body of a comment', function () {
         ->assertJsonPath('body', 'nieuw');
 });
 
-it('lets any authenticated user update or delete any comment', function () {
+it('forbids editing the body of a comment by another user', function () {
     $author = User::factory()->create();
     $other = User::factory()->create();
     $sketch = Sketch::factory()->create(['created_by' => $author->id]);
@@ -180,14 +182,50 @@ it('lets any authenticated user update or delete any comment', function () {
 
     $this->actingAs($other)
         ->patchJson("/api/comments/{$comment->id}", ['body' => 'gewijzigd'])
-        ->assertOk()
-        ->assertJsonPath('body', 'gewijzigd');
+        ->assertForbidden();
+
+    expect($comment->fresh()->body)->toBe('oud');
+});
+
+it('lets any authenticated user move any comment', function () {
+    $author = User::factory()->create();
+    $other = User::factory()->create();
+    $sketch = Sketch::factory()->create(['created_by' => $author->id]);
+    $comment = Comment::factory()->create(['sketch_id' => $sketch->id, 'user_id' => $author->id, 'x' => 10, 'y' => 10]);
 
     $this->actingAs($other)
-        ->deleteJson("/api/comments/{$comment->id}")
+        ->patchJson("/api/comments/{$comment->id}", ['x' => 50, 'y' => 75])
+        ->assertOk();
+
+    expect($comment->fresh()->x)->toBe(50.0)
+        ->and($comment->fresh()->y)->toBe(75.0);
+});
+
+it('lets any authenticated user resolve a thread by deleting the root comment', function () {
+    $author = User::factory()->create();
+    $other = User::factory()->create();
+    $sketch = Sketch::factory()->create(['created_by' => $author->id]);
+    $root = Comment::factory()->create(['sketch_id' => $sketch->id, 'user_id' => $author->id, 'parent_id' => null]);
+
+    $this->actingAs($other)
+        ->deleteJson("/api/comments/{$root->id}")
         ->assertNoContent();
 
-    expect(Comment::find($comment->id))->toBeNull();
+    expect(Comment::find($root->id))->toBeNull();
+});
+
+it('forbids deleting a reply that belongs to another user', function () {
+    $author = User::factory()->create();
+    $other = User::factory()->create();
+    $sketch = Sketch::factory()->create(['created_by' => $author->id]);
+    $root = Comment::factory()->create(['sketch_id' => $sketch->id, 'user_id' => $author->id]);
+    $reply = Comment::factory()->create(['sketch_id' => $sketch->id, 'user_id' => $author->id, 'parent_id' => $root->id]);
+
+    $this->actingAs($other)
+        ->deleteJson("/api/comments/{$reply->id}")
+        ->assertForbidden();
+
+    expect(Comment::find($reply->id))->not->toBeNull();
 });
 
 it('deletes a comment', function () {
@@ -213,12 +251,71 @@ it('cascade-deletes replies when the parent comment is deleted', function () {
     expect(Comment::find($reply->id))->toBeNull();
 });
 
-it('removes comments when their sketch is deleted', function () {
+function makeShare(?string $token = null, bool $active = true): SharedLink
+{
+    $project = Project::factory()->create();
+    $sketch = Sketch::factory()->create(['project_id' => $project->id]);
+
+    return SharedLink::create([
+        'token' => $token ?? 'token-'.uniqid(),
+        'sketch_id' => $sketch->id,
+        'project_id' => $project->id,
+        'is_active' => $active,
+    ]);
+}
+
+it('lets a guest place a comment via a public share link with guest_name', function () {
+    $share = makeShare();
+
+    $this->postJson("/api/shared/{$share->token}/comments", [
+        'x' => 10,
+        'y' => 20,
+        'body' => 'feedback van bezoeker',
+        'guest_name' => 'Bezoeker',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('user_id', null)
+        ->assertJsonPath('guest_name', 'Bezoeker')
+        ->assertJsonPath('sketch_id', $share->sketch_id);
+});
+
+it('requires guest_name when placing a comment via a public share link', function () {
+    $share = makeShare();
+
+    $this->postJson("/api/shared/{$share->token}/comments", [
+        'x' => 0, 'y' => 0, 'body' => 'no name',
+    ])->assertUnprocessable();
+});
+
+it('rejects public comments on an inactive share link', function () {
+    $share = makeShare('disabled', false);
+
+    $this->postJson("/api/shared/{$share->token}/comments", [
+        'x' => 0, 'y' => 0, 'body' => 'x', 'guest_name' => 'Bezoeker',
+    ])->assertNotFound();
+});
+
+it('lists every comment on a public share link including user replies, with author info', function () {
+    $share = makeShare();
     $user = User::factory()->create();
-    $sketch = Sketch::factory()->create(['created_by' => $user->id]);
-    $comment = Comment::factory()->create(['sketch_id' => $sketch->id, 'user_id' => $user->id]);
+    Comment::factory()->create(['sketch_id' => $share->sketch_id, 'user_id' => $user->id, 'body' => 'van user']);
+    Comment::factory()->create(['sketch_id' => $share->sketch_id, 'user_id' => null, 'guest_name' => 'Anoniem', 'body' => 'van guest']);
 
-    $this->actingAs($user)->deleteJson("/api/sketches/{$sketch->id}")->assertNoContent();
+    $this->getJson("/api/shared/{$share->token}/comments")
+        ->assertOk()
+        ->assertJsonCount(2)
+        ->assertJsonStructure([
+            '*' => ['id', 'sketch_id', 'user_id', 'guest_name', 'x', 'y', 'body'],
+        ]);
+});
 
-    expect(Comment::find($comment->id))->toBeNull();
+it('ignores parent_id sent by a guest and always stores a top-level comment', function () {
+    $share = makeShare();
+    $parent = Comment::factory()->create(['sketch_id' => $share->sketch_id, 'user_id' => null, 'guest_name' => 'Anoniem']);
+
+    $this->postJson("/api/shared/{$share->token}/comments", [
+        'x' => 0, 'y' => 0, 'body' => 'x', 'guest_name' => 'Bezoeker', 'parent_id' => $parent->id,
+    ])
+        ->assertCreated()
+        ->assertJsonPath('parent_id', null);
 });

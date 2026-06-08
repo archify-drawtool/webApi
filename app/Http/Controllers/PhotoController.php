@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\PhotoStatus;
 use App\Models\Photo;
+use App\Services\DetectionDebugService;
 use App\Services\PhotoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,20 +12,23 @@ use Illuminate\Validation\Rule;
 
 class PhotoController extends Controller
 {
-    public function __construct(private readonly PhotoService $photoService) {}
+    public function __construct(
+        private readonly PhotoService $photoService,
+        private readonly DetectionDebugService $debugService,
+    ) {}
 
     public function upload(Request $request): JsonResponse
     {
         $request->validate([
             'photo' => 'required|image|max:10240',
             'project_id' => [
-                'required',
+                'nullable',
                 'integer',
                 Rule::exists('projects', 'id'),
             ],
         ]);
 
-        $projectId = $request->integer('project_id');
+        $projectId = $request->filled('project_id') ? $request->integer('project_id') : null;
         $photo = $this->photoService->store($request->file('photo'), $projectId);
 
         return response()->json([
@@ -53,5 +57,19 @@ class PhotoController extends Controller
         }
 
         return response()->json($response);
+    }
+
+    public function getArucoResults(int $sketch_id): JsonResponse
+    {
+        $result = $this->photoService->getDetectionResultBySketchId($sketch_id);
+
+        if ($result === null) {
+            return response()->json(
+                ['message' => 'No detection result found for this sketch.'],
+                404
+            );
+        }
+
+        return response()->json($this->debugService->buildPayload($result));
     }
 }

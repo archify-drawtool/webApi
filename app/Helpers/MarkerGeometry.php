@@ -32,6 +32,36 @@ final class MarkerGeometry
     }
 
     /**
+     * Average of a marker's width and height in pixels.
+     * Returns 0.0 when the required corners are missing.
+     *
+     * @param  iterable  $corners  ArucoMarkerCorner models with position, x, y.
+     */
+    public static function markerSize(iterable $corners): float
+    {
+        $dims = self::markerDimensions($corners);
+
+        return ($dims['width'] + $dims['height']) / 2.0;
+    }
+
+    /**
+     * Effective size of a marker including its OCR hitbox, in pixels.
+     * The hitbox extends the physical marker by xPos/xNeg marker-widths horizontally
+     * and yPos/yNeg marker-heights vertically (from config/marker_config.php).
+     * Returns 0.0 when corners are missing.
+     */
+    public static function markerEffectiveSize(object $marker): float
+    {
+        $dims = self::markerDimensions($marker->corners);
+        $hitbox = self::resolveHitbox((int) $marker->marker_id);
+
+        $effectiveWidth = $dims['width'] * (1 + $hitbox['xPos'] + $hitbox['xNeg']);
+        $effectiveHeight = $dims['height'] * (1 + $hitbox['yPos'] + $hitbox['yNeg']);
+
+        return ($effectiveWidth + $effectiveHeight) / 2.0;
+    }
+
+    /**
      * World-coordinate center of the OCR hitbox area surrounding a marker.
      *
      * Hitbox offsets are in the marker's local frame (xPos = forward/right, xNeg = back/left).
@@ -77,6 +107,67 @@ final class MarkerGeometry
     }
 
     /**
+     * World-coordinate corners of the hitbox rectangle around a marker.
+     *
+     * @param  array{xPos: float, xNeg: float, yPos: float, yNeg: float}  $hitbox
+     * @return array<array{x: float, y: float}> Four corners in local TL→TR→BR→BL order.
+     */
+    public static function hitboxCorners(
+        float $cx, float $cy,
+        float $markerW,
+        array $hitbox,
+        float $rotationDeg
+    ): array {
+        $rRad = deg2rad($rotationDeg);
+        $cosR = cos($rRad);
+        $sinR = sin($rRad);
+
+        $local = [
+            [-(0.5 + $hitbox['xNeg']) * $markerW, -(0.5 + $hitbox['yNeg']) * $markerW],
+            [(0.5 + $hitbox['xPos']) * $markerW, -(0.5 + $hitbox['yNeg']) * $markerW],
+            [(0.5 + $hitbox['xPos']) * $markerW,  (0.5 + $hitbox['yPos']) * $markerW],
+            [-(0.5 + $hitbox['xNeg']) * $markerW,  (0.5 + $hitbox['yPos']) * $markerW],
+        ];
+
+        return array_map(fn ($lc) => [
+            'x' => round($cx + $lc[0] * $cosR - $lc[1] * $sinR, 2),
+            'y' => round($cy + $lc[0] * $sinR + $lc[1] * $cosR, 2),
+        ], $local);
+    }
+
+    /**
+     * Test whether a point (px, py) lies inside a rotated rectangle defined by its four corners.
+     *
+     * $corners must be in TL→TR→BR→BL order, as returned by hitboxCorners().
+     * Uses two dot-product projections onto the rectangle's own axes — no AABB needed.
+     */
+    public static function pointInHitbox(float $px, float $py, array $corners): bool
+    {
+        $tl = $corners[0];
+        $tr = $corners[1];
+        $bl = $corners[3];
+
+        $ux = $tr['x'] - $tl['x'];
+        $uy = $tr['y'] - $tl['y'];
+        $vx = $bl['x'] - $tl['x'];
+        $vy = $bl['y'] - $tl['y'];
+        $dx = $px - $tl['x'];
+        $dy = $py - $tl['y'];
+
+        $dotUU = $ux * $ux + $uy * $uy;
+        $dotVV = $vx * $vx + $vy * $vy;
+
+        if ($dotUU === 0.0 || $dotVV === 0.0) {
+            return false;
+        }
+
+        $projU = ($dx * $ux + $dy * $uy) / $dotUU;
+        $projV = ($dx * $vx + $dy * $vy) / $dotVV;
+
+        return $projU >= 0.0 && $projU <= 1.0 && $projV >= 0.0 && $projV <= 1.0;
+    }
+
+    /**
      * Look up and validate the OCR hitbox for the given marker ID.
      *
      * @throws InvalidArgumentException When the hitbox boundaries cross each other.
@@ -84,7 +175,8 @@ final class MarkerGeometry
     public static function resolveHitbox(int $markerId): array
     {
         $config = config('marker_config', []);
-        $hitbox = $config[$markerId]['hitbox'] ?? ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0];
+        $default = $config['default']['hitbox'] ?? ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0];
+        $hitbox = $config[$markerId]['hitbox'] ?? $default;
 
         if (($hitbox['xPos'] + $hitbox['xNeg']) <= -1.0) {
             throw new InvalidArgumentException(

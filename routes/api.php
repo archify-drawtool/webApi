@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\NodeTypeController;
 use App\Http\Controllers\PhotoController;
+use App\Http\Controllers\PhotoPreviewController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\SharedLinkController;
 use App\Http\Controllers\SketchController;
@@ -16,12 +17,16 @@ Route::get('/health', function () {
 
 Route::get('/metrics', PrometheusMetricsController::class);
 
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/auth/microsoft', [AuthController::class, 'microsoftLogin']);
+
 Route::get('/shared/node-types', [SharedLinkController::class, 'nodesTypes']);
 Route::get('/shared/{token}', [SharedLinkController::class, 'show']);
 Route::get('/shared/{token}/photo', [SharedLinkController::class, 'showPhoto']);
+Route::get('/shared/{token}/comments', [SharedLinkController::class, 'comments']);
+Route::post('/shared/{token}/comments', [SharedLinkController::class, 'storeComment']);
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/me', [AuthController::class, 'me']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::patch('/user', [AuthController::class, 'updatePreferences']);
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -29,8 +34,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/projects', [ProjectController::class, 'index']);
     Route::post('/projects', [ProjectController::class, 'store']);
     Route::get('/projects/{project}', [ProjectController::class, 'show']);
+    Route::patch('/projects/{project}', [ProjectController::class, 'rename']);
+    Route::delete('/projects/{project}', [ProjectController::class, 'destroy']);
     Route::post('/photos/upload', [PhotoController::class, 'upload']);
+    Route::post('/photos/preview', [PhotoPreviewController::class, 'preview']);
+    Route::get('/photos/preview/{preview}', [PhotoPreviewController::class, 'status']);
+    Route::post('/photos/preview/{preview}/commit', [PhotoPreviewController::class, 'commit']);
+    Route::delete('/photos/preview/{preview}', [PhotoPreviewController::class, 'destroy']);
     Route::get('/photos/{photo}/status', [PhotoController::class, 'status']);
+    Route::get('/photos/{sketch_id}/aruco', [PhotoController::class, 'getArucoResults']);
     Route::get('/sketches', [SketchController::class, 'userIndex']);
     Route::post('/sketches', [SketchController::class, 'store']);
     Route::get('/sketches/{sketch}', [SketchController::class, 'show']);

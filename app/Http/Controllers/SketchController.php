@@ -25,6 +25,7 @@ class SketchController extends Controller
 
         $sketches = Sketch::where('created_by', $request->user()->id)
             ->when($request->filled('project_id'), fn ($q) => $q->where('project_id', $request->project_id))
+            ->when($request->boolean('projectless'), fn ($q) => $q->whereNull('project_id'))
             ->with('creator:id,name,email')
             ->orderByDesc('updated_at')
             ->get();
@@ -53,9 +54,9 @@ class SketchController extends Controller
         $photo = $sketch->photo()->whereNotNull('path')->first();
 
         abort_if($photo === null, 404);
-        abort_unless(Storage::disk('local')->exists($photo->path), 404);
+        abort_unless(Storage::disk('s3')->exists($photo->path), 404);
 
-        return Storage::disk('local')->response($photo->path);
+        return Storage::disk('s3')->response($photo->path);
     }
 
     /**
@@ -104,8 +105,6 @@ class SketchController extends Controller
      */
     public function updateCanvas(Request $request, Sketch $sketch): JsonResponse
     {
-        abort_if($sketch->created_by !== $request->user()->id, 403);
-
         $request->validate([
             'canvas_state' => 'required|array',
             'canvas_state.nodes' => 'present|array',
@@ -134,8 +133,6 @@ class SketchController extends Controller
      */
     public function renameSketch(Request $request, Sketch $sketch): JsonResponse
     {
-        abort_if($sketch->created_by !== $request->user()->id, 403);
-
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
         ]);
@@ -167,8 +164,6 @@ class SketchController extends Controller
      */
     public function destroySketch(Request $request, Sketch $sketch): Response
     {
-        abort_if($sketch->created_by !== $request->user()->id, 403);
-
         $sketch->delete();
 
         return response()->noContent();

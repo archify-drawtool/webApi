@@ -4,6 +4,36 @@ use App\Models\Project;
 use App\Models\Sketch;
 use App\Models\User;
 
+it('returns all user sketches including project-linked ones', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['created_by' => $user->id]);
+
+    Sketch::factory(2)->create(['created_by' => $user->id, 'project_id' => null]);
+    Sketch::factory(3)->create(['created_by' => $user->id, 'project_id' => $project->id]);
+
+    $this->actingAs($user)
+        ->getJson('/api/sketches')
+        ->assertOk()
+        ->assertJsonCount(5);
+});
+
+it('returns only projectless sketches when projectless=true', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['created_by' => $user->id]);
+
+    Sketch::factory(2)->create(['created_by' => $user->id, 'project_id' => null]);
+    Sketch::factory(3)->create(['created_by' => $user->id, 'project_id' => $project->id]);
+
+    $this->actingAs($user)
+        ->getJson('/api/sketches?projectless=true')
+        ->assertOk()
+        ->assertJsonCount(2);
+});
+
+it('returns 401 when unauthenticated on user sketches index', function () {
+    $this->getJson('/api/sketches')->assertUnauthorized();
+});
+
 it('returns a sketch by id', function () {
     $user = User::factory()->create();
     $sketch = Sketch::factory()->create(['created_by' => $user->id]);
