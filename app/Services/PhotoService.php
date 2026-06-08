@@ -12,6 +12,7 @@ use App\Models\DetectionResult;
 use App\Models\Photo;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -25,10 +26,10 @@ readonly class PhotoService
         private VueFlowConversionService $vueFlowConversionService,
     ) {}
 
-    public function store(UploadedFile $photo, int $projectId): Photo
+    public function store(UploadedFile $photo, ?int $projectId): Photo
     {
         $filename = now()->timezone('Europe/Amsterdam')->format('Y-m-d_H-i-s_v').'.'.$photo->getClientOriginalExtension();
-        $path = $photo->storeAs('photos', $filename, 'local');
+        $path = $photo->storeAs('photos', $filename, 's3');
 
         $photoModel = Photo::create([
             'project_id' => $projectId,
@@ -37,17 +38,25 @@ readonly class PhotoService
             'status' => PhotoStatus::Processing,
         ]);
 
-        ProcessPhotoJob::dispatch($photoModel);
+        ProcessPhotoJob::dispatch($photoModel, Auth::id());
 
         return $photoModel;
     }
 
-    public function process(Photo $photo): void
+    public function process(Photo $photo, ?int $userId = null): void
     {
-        $absolutePath = Storage::disk('local')->path($photo->path);
+        // The detection pipeline (Python ArUco subprocess + GD) requires a real
+        // local file path, so we pull the S3 object down to a temp file first.
+        // Image type is detected from file contents (getimagesize), so the temp
+        // file needs no extension.
+        $absolutePath = tempnam(sys_get_temp_dir(), 'photo_');
+        file_put_contents($absolutePath, Storage::disk('s3')->get($photo->path));
 
         try {
+            // normalizeExifOrientation rewrites the temp file in place. Push the
+            // corrected image back to S3 so the stored object matches what we processed.
             $this->imageSnippetService->normalizeExifOrientation($absolutePath);
+            Storage::disk('s3')->put($photo->path, file_get_contents($absolutePath));
 
             $markers = $this->arucoService->detectMarkers($absolutePath);
 
@@ -58,8 +67,7 @@ readonly class PhotoService
                 'detected_at' => Carbon::now(),
             ]);
 
-            $snippets = $this->extractSnippets($absolutePath, $markers);
-            $ocrTexts = $this->batchOcr($snippets);
+            $ocrTexts = $this->ocrService->recognizeTextInRegions($absolutePath, $markers);
 
             $cornerMap = [
                 CornerPosition::TopLeft,
@@ -97,10 +105,11 @@ readonly class PhotoService
                     'source_marker_id' => $edge['source_marker']->id,
                     'target_marker_id' => $edge['target_marker']->id,
                     'edge_type' => $edge['edge_type']->value,
+                    'retry_attempts' => $edge['retry_attempts'],
                 ]);
             }
 
-            $sketch = $this->vueFlowConversionService->convert($detectionResult, $photo->project_id);
+            $sketch = $this->vueFlowConversionService->convert($detectionResult, $photo->project_id, $userId);
 
             $photo->update([
                 'status' => PhotoStatus::Completed,
@@ -120,6 +129,10 @@ readonly class PhotoService
                 'status' => PhotoStatus::Failed,
                 'error_message' => $e->getMessage(),
             ]);
+        } finally {
+            if (is_file($absolutePath)) {
+                @unlink($absolutePath);
+            }
         }
     }
 
@@ -127,60 +140,20 @@ readonly class PhotoService
     {
         return DetectionResult::with([
             'markers.corners',
-            'edges.edgeMarker',
+            'edges.edgeMarker.corners',
             'edges.sourceMarker',
             'edges.targetMarker',
         ])->where('filename', $filename)->first();
     }
 
-    /**
-     * Extract image snippets for all markers. Entries that fail are stored as null.
-     *
-     * @param  array[]  $markers
-     * @return (string|null)[]
-     */
-    private function extractSnippets(string $absolutePath, array $markers): array
+    public function getDetectionResultBySketchId(int $sketchId): ?DetectionResult
     {
-        return array_map(function (array $marker) use ($absolutePath): ?string {
-            try {
-                return $this->imageSnippetService->extractSnippet($absolutePath, $marker);
-            } catch (Throwable $e) {
-                report($e);
+        $photo = Photo::where('sketch_id', $sketchId)->first();
 
-                return null;
-            }
-        }, $markers);
-    }
-
-    /**
-     * Send all non-null snippets to Vision in one request, returning an indexed array of
-     * OCR text strings (or null for markers whose snippet extraction failed).
-     *
-     * @param  (string|null)[]  $snippets
-     * @return (string|null)[]
-     */
-    private function batchOcr(array $snippets): array
-    {
-        $indexedSnippets = array_filter($snippets, fn (?string $s) => $s !== null);
-
-        if (empty($indexedSnippets)) {
-            return array_fill(0, count($snippets), null);
+        if ($photo === null) {
+            return null;
         }
 
-        $originalIndices = array_keys($indexedSnippets);
-
-        try {
-            $results = $this->ocrService->recognizeTextBatch(array_values($indexedSnippets));
-        } catch (Throwable $e) {
-            report($e);
-            $results = [];
-        }
-
-        $ocrTexts = array_fill(0, count($snippets), null);
-        foreach ($originalIndices as $batchIndex => $originalIndex) {
-            $ocrTexts[$originalIndex] = $results[$batchIndex] ?? null;
-        }
-
-        return $ocrTexts;
+        return $this->getDetectionResult($photo->filename);
     }
 }

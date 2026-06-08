@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\Sketch;
+use App\Services\DrawioExportService;
 use App\Services\MermaidExportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SketchController extends Controller
 {
@@ -22,6 +25,7 @@ class SketchController extends Controller
 
         $sketches = Sketch::where('created_by', $request->user()->id)
             ->when($request->filled('project_id'), fn ($q) => $q->where('project_id', $request->project_id))
+            ->when($request->boolean('projectless'), fn ($q) => $q->whereNull('project_id'))
             ->with('creator:id,name,email')
             ->orderByDesc('updated_at')
             ->get();
@@ -36,7 +40,23 @@ class SketchController extends Controller
     {
         $sketch->load('creator:id,name,email');
 
-        return response()->json($sketch);
+        $payload = $sketch->toArray();
+        $payload['has_photo'] = $sketch->photo()->whereNotNull('path')->exists();
+
+        return response()->json($payload);
+    }
+
+    /**
+     * Stream the original photo that produced this sketch.
+     */
+    public function showPhoto(Sketch $sketch): StreamedResponse
+    {
+        $photo = $sketch->photo()->whereNotNull('path')->first();
+
+        abort_if($photo === null, 404);
+        abort_unless(Storage::disk('s3')->exists($photo->path), 404);
+
+        return Storage::disk('s3')->response($photo->path);
     }
 
     /**
@@ -85,8 +105,6 @@ class SketchController extends Controller
      */
     public function updateCanvas(Request $request, Sketch $sketch): JsonResponse
     {
-        abort_if($sketch->created_by !== $request->user()->id, 403);
-
         $request->validate([
             'canvas_state' => 'required|array',
             'canvas_state.nodes' => 'present|array',
@@ -115,8 +133,6 @@ class SketchController extends Controller
      */
     public function renameSketch(Request $request, Sketch $sketch): JsonResponse
     {
-        abort_if($sketch->created_by !== $request->user()->id, 403);
-
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
         ]);
@@ -148,8 +164,6 @@ class SketchController extends Controller
      */
     public function destroySketch(Request $request, Sketch $sketch): Response
     {
-        abort_if($sketch->created_by !== $request->user()->id, 403);
-
         $sketch->delete();
 
         return response()->noContent();
@@ -162,5 +176,23 @@ class SketchController extends Controller
     {
         return response($mermaid->exportSketch($sketch->canvas_state ?? []), 200)
             ->header('Content-Type', 'text/plain');
+    }
+
+    public function exportDrawioFromState(Request $request, DrawioExportService $drawio): Response
+    {
+        $validated = $request->validate([
+            'canvas_state' => 'required|array',
+            'canvas_state.nodes' => 'present|array',
+            'canvas_state.edges' => 'present|array',
+        ]);
+
+        return response($drawio->exportSketch($validated['canvas_state']), 200)
+            ->header('Content-Type', 'application/xml');
+    }
+
+    public function exportDrawioSketch(Sketch $sketch, DrawioExportService $drawio): Response
+    {
+        return response($drawio->exportSketch($sketch->canvas_state ?? []), 200)
+            ->header('Content-Type', 'application/xml');
     }
 }

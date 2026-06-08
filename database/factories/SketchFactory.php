@@ -12,6 +12,17 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class SketchFactory extends Factory
 {
+    private static int $titleIndex = 0;
+
+    private static function nextTitle(): string
+    {
+        $i = self::$titleIndex++;
+        $base = self::$sketchTitles[$i % count(self::$sketchTitles)];
+        $cycle = intdiv($i, count(self::$sketchTitles));
+
+        return $cycle === 0 ? $base : "$base ($cycle)";
+    }
+
     private static array $sketchTitles = [
         'Systeem overzicht (high-level)',
         'Database schema v1',
@@ -115,7 +126,7 @@ class SketchFactory extends Factory
     public function definition(): array
     {
         return [
-            'title' => fake()->randomElement(self::$sketchTitles),
+            'title' => self::nextTitle(),
             'project_id' => Project::factory(),
             'created_by' => User::factory(),
             'canvas_state' => null,
