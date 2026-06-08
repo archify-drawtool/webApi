@@ -52,6 +52,10 @@ class PhotoPreviewService
 
     public function runDetection(PhotoPreview $preview): void
     {
+        if (! $preview->exists || ! Storage::disk('local')->exists($preview->file_path)) {
+            return;
+        }
+
         $absolutePath = Storage::disk('local')->path($preview->file_path);
 
         try {
