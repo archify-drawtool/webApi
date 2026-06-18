@@ -22,10 +22,7 @@ class DetectionDebugService
         $edgeMarkers = [];
 
         foreach ($result->markers as $marker) {
-            $cfg = $markerConfig[$marker->marker_id] ?? [
-                'type' => 'node',
-                'hitbox' => ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0],
-            ];
+            $cfg = $markerConfig[$marker->marker_id];
 
             $base = [
                 'id' => $marker->id,

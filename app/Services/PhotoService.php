@@ -58,7 +58,11 @@ readonly class PhotoService
             $this->imageSnippetService->normalizeExifOrientation($absolutePath);
             Storage::disk('s3')->put($photo->path, file_get_contents($absolutePath));
 
-            $markers = $this->arucoService->detectMarkers($absolutePath);
+            $markerConfig = config('marker_config', []);
+            $markers = array_values(array_filter(
+                $this->arucoService->detectMarkers($absolutePath),
+                fn ($m) => array_key_exists($m['id'], $markerConfig),
+            ));
 
             $detectionResult = DetectionResult::create([
                 'filename' => $photo->filename,
