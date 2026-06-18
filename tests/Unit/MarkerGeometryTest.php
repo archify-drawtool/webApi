@@ -28,10 +28,8 @@ describe('resolveHitbox', function () {
         }
     });
 
-    test('returns default hitbox for unknown marker ID', function () {
-        config(['marker_config' => [
-            'default' => ['type' => 'node', 'hitbox' => ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0]],
-        ]]);
+    test('returns hardcoded fallback hitbox for unknown marker ID', function () {
+        config(['marker_config' => []]);
 
         $hitbox = MarkerGeometry::resolveHitbox(999);
 

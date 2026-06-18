@@ -22,10 +22,7 @@ class DetectionDebugService
         $edgeMarkers = [];
 
         foreach ($result->markers as $marker) {
-            $cfg = $markerConfig[$marker->marker_id] ?? $markerConfig['default'] ?? [
-                'type' => 'node',
-                'hitbox' => ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0],
-            ];
+            $cfg = $markerConfig[$marker->marker_id];
 
             $base = [
                 'id' => $marker->id,
@@ -42,6 +39,7 @@ class DetectionDebugService
                 'type' => $cfg['type'],
                 'hitbox' => $cfg['hitbox'],
                 'hitbox_corners' => $this->hitboxCorners($marker, $cfg['hitbox']),
+                'card_center' => MarkerGeometry::markerCardCenter($marker),
             ];
 
             if ($cfg['type'] === 'node') {
@@ -108,12 +106,15 @@ class DetectionDebugService
 
         $fallback = 9999;
 
-        $dSrc = $src !== null
-            ? ($src->center_x - $em->center_x) * $mainX + ($src->center_y - $em->center_y) * $mainY
+        $srcCenter = $src !== null ? MarkerGeometry::markerCardCenter($src) : null;
+        $tgtCenter = $tgt !== null ? MarkerGeometry::markerCardCenter($tgt) : null;
+
+        $dSrc = $srcCenter !== null
+            ? ($srcCenter['x'] - $em->center_x) * $mainX + ($srcCenter['y'] - $em->center_y) * $mainY
             : -$fallback;
 
-        $dTgt = $tgt !== null
-            ? ($tgt->center_x - $em->center_x) * $mainX + ($tgt->center_y - $em->center_y) * $mainY
+        $dTgt = $tgtCenter !== null
+            ? ($tgtCenter['x'] - $em->center_x) * $mainX + ($tgtCenter['y'] - $em->center_y) * $mainY
             : $fallback;
 
         $marginSrc = $baseMargin + $angleTan * abs($dSrc);

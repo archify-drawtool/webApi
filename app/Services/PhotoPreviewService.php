@@ -61,7 +61,11 @@ class PhotoPreviewService
         try {
             $this->imageSnippetService->normalizeExifOrientation($absolutePath);
 
-            $markers = $this->arucoService->detectMarkers($absolutePath);
+            $markerConfig = config('marker_config', []);
+            $markers = array_values(array_filter(
+                $this->arucoService->detectMarkers($absolutePath),
+                fn ($m) => array_key_exists($m['id'], $markerConfig),
+            ));
 
             $filename = basename($preview->file_path);
 
@@ -81,7 +85,6 @@ class PhotoPreviewService
                 CornerPosition::BottomLeft,
             ];
 
-            $markerConfig = config('marker_config', []);
             $nodeCount = 0;
 
             foreach ($markers as $index => $marker) {

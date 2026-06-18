@@ -168,6 +168,42 @@ final class MarkerGeometry
     }
 
     /**
+     * World-coordinate card center for a node marker.
+     *
+     * Reads the `center` offset from marker_config (in marker-width units, local axes)
+     * and rotates it into world space. When center is [0, 0] this equals the raw marker center.
+     *
+     * @return array{x: float, y: float}
+     */
+    public static function markerCardCenter(object $marker): array
+    {
+        $dims = self::markerDimensions($marker->corners);
+        $center = self::resolveCardCenter((int) $marker->marker_id);
+        $rad = deg2rad((float) $marker->rotation);
+
+        $dxLocal = $center['x'] * $dims['width'];
+        $dyLocal = $center['y'] * $dims['width'];
+
+        return [
+            'x' => (float) $marker->center_x + cos($rad) * $dxLocal - sin($rad) * $dyLocal,
+            'y' => (float) $marker->center_y + sin($rad) * $dxLocal + cos($rad) * $dyLocal,
+        ];
+    }
+
+    /**
+     * Read the card center offset for a marker ID from marker_config.
+     * Defaults to [x => 0, y => 0] (raw marker center) when not configured.
+     *
+     * @return array{x: float, y: float}
+     */
+    public static function resolveCardCenter(int $markerId): array
+    {
+        $config = config('marker_config', []);
+
+        return $config[$markerId]['center'] ?? ['x' => 0.0, 'y' => 0.0];
+    }
+
+    /**
      * Look up and validate the OCR hitbox for the given marker ID.
      *
      * @throws InvalidArgumentException When the hitbox boundaries cross each other.
@@ -175,8 +211,7 @@ final class MarkerGeometry
     public static function resolveHitbox(int $markerId): array
     {
         $config = config('marker_config', []);
-        $default = $config['default']['hitbox'] ?? ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0];
-        $hitbox = $config[$markerId]['hitbox'] ?? $default;
+        $hitbox = $config[$markerId]['hitbox'] ?? ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0];
 
         if (($hitbox['xPos'] + $hitbox['xNeg']) <= -1.0) {
             throw new InvalidArgumentException(
