@@ -183,7 +183,7 @@ class EdgeDetectionService
         $bestPosDot = PHP_FLOAT_MAX;
 
         foreach ($nodeMarkers as $node) {
-            $nodeCenter = MarkerGeometry::markerHitboxCenter($node);
+            $nodeCenter = MarkerGeometry::markerCardCenter($node);
             $dx = $nodeCenter['x'] - $centerX;
             $dy = $nodeCenter['y'] - $centerY;
 

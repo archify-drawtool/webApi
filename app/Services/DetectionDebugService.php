@@ -39,6 +39,7 @@ class DetectionDebugService
                 'type' => $cfg['type'],
                 'hitbox' => $cfg['hitbox'],
                 'hitbox_corners' => $this->hitboxCorners($marker, $cfg['hitbox']),
+                'card_center' => MarkerGeometry::markerCardCenter($marker),
             ];
 
             if ($cfg['type'] === 'node') {
