@@ -106,12 +106,15 @@ class DetectionDebugService
 
         $fallback = 9999;
 
-        $dSrc = $src !== null
-            ? ($src->center_x - $em->center_x) * $mainX + ($src->center_y - $em->center_y) * $mainY
+        $srcCenter = $src !== null ? MarkerGeometry::markerCardCenter($src) : null;
+        $tgtCenter = $tgt !== null ? MarkerGeometry::markerCardCenter($tgt) : null;
+
+        $dSrc = $srcCenter !== null
+            ? ($srcCenter['x'] - $em->center_x) * $mainX + ($srcCenter['y'] - $em->center_y) * $mainY
             : -$fallback;
 
-        $dTgt = $tgt !== null
-            ? ($tgt->center_x - $em->center_x) * $mainX + ($tgt->center_y - $em->center_y) * $mainY
+        $dTgt = $tgtCenter !== null
+            ? ($tgtCenter['x'] - $em->center_x) * $mainX + ($tgtCenter['y'] - $em->center_y) * $mainY
             : $fallback;
 
         $marginSrc = $baseMargin + $angleTan * abs($dSrc);
