@@ -175,8 +175,7 @@ final class MarkerGeometry
     public static function resolveHitbox(int $markerId): array
     {
         $config = config('marker_config', []);
-        $default = $config['default']['hitbox'] ?? ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0];
-        $hitbox = $config[$markerId]['hitbox'] ?? $default;
+        $hitbox = $config[$markerId]['hitbox'] ?? ['xPos' => 2.0, 'xNeg' => 2.0, 'yPos' => 2.0, 'yNeg' => 2.0];
 
         if (($hitbox['xPos'] + $hitbox['xNeg']) <= -1.0) {
             throw new InvalidArgumentException(

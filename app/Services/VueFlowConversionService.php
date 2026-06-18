@@ -25,7 +25,8 @@ class VueFlowConversionService
 
         $markerSizes = [];
         $nodes = $detectionResult->markers
-            ->filter(fn ($marker) => MarkerType::fromConfig($marker->marker_id, $markerConfig) === MarkerType::Node)
+            ->filter(fn ($marker) => array_key_exists($marker->marker_id, $markerConfig)
+                && MarkerType::fromConfig($marker->marker_id, $markerConfig) === MarkerType::Node)
             ->map(function ($marker) use ($nodeTypes, &$markerSizes) {
                 $nodeType = $nodeTypes->firstWhere('aruco', $marker->marker_id);
                 $position = MarkerGeometry::markerHitboxCenter($marker);

@@ -150,9 +150,11 @@ class EdgeDetectionService
      */
     private function partitionMarkers(Collection $markers, array $config): array
     {
-        $grouped = $markers->groupBy(
-            fn ($m) => MarkerType::fromConfig($m->marker_id, $config) === MarkerType::Node ? 'node' : 'edge'
-        );
+        $grouped = $markers
+            ->filter(fn ($m) => array_key_exists($m->marker_id, $config))
+            ->groupBy(
+                fn ($m) => MarkerType::fromConfig($m->marker_id, $config) === MarkerType::Node ? 'node' : 'edge'
+            );
 
         return [$grouped->get('edge', collect()), $grouped->get('node', collect())];
     }
