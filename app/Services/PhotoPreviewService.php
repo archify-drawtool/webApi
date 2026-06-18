@@ -81,7 +81,8 @@ class PhotoPreviewService
             $nodeCount = 0;
 
             foreach ($markers as $index => $marker) {
-                if (MarkerType::fromConfig($marker['id'], $markerConfig) === MarkerType::Node) {
+                if (array_key_exists($marker['id'], $markerConfig)
+                    && MarkerType::fromConfig($marker['id'], $markerConfig) === MarkerType::Node) {
                     $nodeCount++;
                 }
 
